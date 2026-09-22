@@ -328,35 +328,40 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
 
   const nowMs = Date.now();
 
-  const assignedTests: StudentTestSummary[] = (assignmentRows || [])
+  const assignedTestMap = new Map<string, StudentTestSummary>();
+  (assignmentRows || [])
     .filter((a: any) => a.tests && a.tests.status !== "DRAFT" && a.tests.status !== "ARCHIVED")
-    .map((a: any) => {
+    .forEach((a: any) => {
       const t = a.tests;
-      const latest = resultMapByTestId.get(t.id);
-      const isCurrentActive = activeAttempt?.testId === t.id;
-      const { actionState, canStart } = computeTestActionState(t, isCurrentActive ? activeAttempt : null, latest, nowMs);
+      if (!assignedTestMap.has(t.id)) {
+        const latest = resultMapByTestId.get(t.id);
+        const isCurrentActive = activeAttempt?.testId === t.id;
+        const { actionState, canStart } = computeTestActionState(t, isCurrentActive ? activeAttempt : null, latest, nowMs);
 
-      return {
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        examType: t.exam_type,
-        testMode: t.test_mode,
-        durationMinutes: t.duration_minutes,
-        totalMarks: Number(t.total_marks) || 0,
-        markingScheme: t.marking_scheme,
-        status: t.status,
-        startTime: t.start_time,
-        endTime: t.end_time,
-        dueAt: a.due_at,
-        assignmentSource: a.student_id === studentId ? ("DIRECT" as const) : ("CLASS" as const),
-        questionCount: t.test_questions?.[0]?.count || 0,
-        activeAttempt: isCurrentActive ? activeAttempt : null,
-        latestAttempt: latest,
-        canStart,
-        actionState,
-      };
+        assignedTestMap.set(t.id, {
+          id: t.id,
+          title: t.title,
+          description: t.description,
+          examType: t.exam_type,
+          testMode: t.test_mode,
+          durationMinutes: t.duration_minutes,
+          totalMarks: Number(t.total_marks) || 0,
+          markingScheme: t.marking_scheme,
+          status: t.status,
+          startTime: t.start_time,
+          endTime: t.end_time,
+          dueAt: a.due_at,
+          assignmentSource: a.student_id === studentId ? ("DIRECT" as const) : ("CLASS" as const),
+          questionCount: t.test_questions?.[0]?.count || 0,
+          activeAttempt: isCurrentActive ? activeAttempt : null,
+          latestAttempt: latest,
+          canStart,
+          actionState,
+        });
+      }
     });
+
+  const assignedTests = Array.from(assignedTestMap.values());
 
   const practiceTests: StudentTestSummary[] = (practiceRows || []).map((t: any) => {
     const latest = resultMapByTestId.get(t.id);
