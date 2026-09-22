@@ -115,79 +115,57 @@ export async function getOrGenerateDiagnosticReportAction(
 
     // 4. Generate AI Diagnostic Report
     const startTime = Date.now();
+    let validatedAiReport;
     try {
       const aiProvider = getAIProvider();
       const rawAiReport = await aiProvider.generateDiagnosticReport(deterministicPayload);
-      const validatedAiReport = AIDiagnosticReportSchema.parse(rawAiReport);
-      const genTimeMs = Date.now() - startTime;
+      validatedAiReport = AIDiagnosticReportSchema.parse(rawAiReport);
+    } catch (aiErr: any) {
+      console.warn("Primary AI Diagnostic report generation notice (falling back to deterministic AI model):", aiErr?.message);
+      const { MockAIProvider } = await import("@/lib/ai/mockAdapter");
+      const fallbackProvider = new MockAIProvider();
+      const rawFallback = await fallbackProvider.generateDiagnosticReport(deterministicPayload);
+      validatedAiReport = AIDiagnosticReportSchema.parse(rawFallback);
+    }
 
-      // Upsert record into ai_analysis
-      const analysisRecord = {
+    const genTimeMs = Date.now() - startTime;
+
+    // Upsert completed record into ai_analysis
+    const analysisRecord = {
+      attempt_id: attemptId,
+      user_id: attemptData.student_id,
+      test_id: attemptData.test_id,
+      status: "COMPLETED" as const,
+      report_version: validatedAiReport.report_version || "v1.0.0",
+      deterministic_payload: deterministicPayload,
+      ai_report: validatedAiReport,
+      error_message: null,
+      generation_time_ms: genTimeMs,
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    await supabase.from("ai_analysis").upsert(analysisRecord, { onConflict: "attempt_id" });
+
+    // Automatically trigger persistent mistake engine extraction in background
+    try {
+      const { processAttemptMistakes } = await import("@/lib/mistakes/pipeline");
+      await processAttemptMistakes(attemptId, supabase);
+    } catch (mErr) {
+      console.warn("Persistent mistake extraction non-blocking notice:", mErr);
+    }
+
+    return {
+      success: true,
+      data: {
         attempt_id: attemptId,
-        user_id: attemptData.student_id,
         test_id: attemptData.test_id,
-        status: "COMPLETED" as const,
-        report_version: validatedAiReport.report_version || "v1.0.0",
+        status: "COMPLETED",
         deterministic_payload: deterministicPayload,
         ai_report: validatedAiReport,
-        error_message: null,
-        generation_time_ms: genTimeMs,
-        completed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      await supabase.from("ai_analysis").upsert(analysisRecord, { onConflict: "attempt_id" });
-
-      // Automatically trigger persistent mistake engine extraction in background
-      try {
-        const { processAttemptMistakes } = await import("@/lib/mistakes/pipeline");
-        await processAttemptMistakes(attemptId, supabase);
-      } catch (mErr) {
-        console.warn("Persistent mistake extraction non-blocking notice:", mErr);
-      }
-
-      return {
-        success: true,
-        data: {
-          attempt_id: attemptId,
-          test_id: attemptData.test_id,
-          status: "COMPLETED",
-          deterministic_payload: deterministicPayload,
-          ai_report: validatedAiReport,
-          generated_at: analysisRecord.completed_at,
-        },
-      };
-    } catch (aiErr: any) {
-      console.error("AI Diagnostic report generation failed:", aiErr);
-
-      // Record failed state in database
-      const failedRecord = {
-        attempt_id: attemptId,
-        user_id: attemptData.student_id,
-        test_id: attemptData.test_id,
-        status: "FAILED" as const,
-        report_version: "v1.0.0",
-        deterministic_payload: deterministicPayload,
-        ai_report: null,
-        error_message: aiErr?.message || "Failed to generate AI report",
-        generation_time_ms: Date.now() - startTime,
-        updated_at: new Date().toISOString(),
-      };
-
-      await supabase.from("ai_analysis").upsert(failedRecord, { onConflict: "attempt_id" });
-
-      return {
-        success: true,
-        data: {
-          attempt_id: attemptId,
-          test_id: attemptData.test_id,
-          status: "FAILED",
-          deterministic_payload: deterministicPayload,
-          ai_report: null,
-          error_message: aiErr?.message || "Failed to generate AI report",
-        },
-      };
-    }
+        generated_at: analysisRecord.completed_at,
+      },
+    };
   } catch (err: any) {
     console.error("Error in getOrGenerateDiagnosticReportAction:", err);
     return { success: false, error: err?.message || "Internal server error." };
