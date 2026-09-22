@@ -306,7 +306,18 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
         : `student_id.eq.${studentId}`
     );
 
-  // 5. Fetch Student's Own Private Practice Tests
+  // 5. Fetch Published Official / Teacher Mock & Scheduled Tests
+  const { data: officialTests } = await supabase
+    .from("tests")
+    .select(`
+      id, title, description, exam_type, test_mode, duration_minutes, total_marks,
+      marking_scheme, status, start_time, end_time,
+      test_questions (count)
+    `)
+    .in("test_mode", ["MOCK", "SCHEDULED"])
+    .in("status", ["PUBLISHED", "LIVE", "SCHEDULED"]);
+
+  // 6. Fetch Student's Own Private Practice Tests
   const { data: practiceRows } = await supabase
     .from("tests")
     .select(`
@@ -360,6 +371,36 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
         });
       }
     });
+
+  // Also populate any published mock tests not explicitly in assignment table
+  (officialTests || []).forEach((t: any) => {
+    if (!assignedTestMap.has(t.id)) {
+      const latest = resultMapByTestId.get(t.id);
+      const isCurrentActive = activeAttempt?.testId === t.id;
+      const { actionState, canStart } = computeTestActionState(t, isCurrentActive ? activeAttempt : null, latest, nowMs);
+
+      assignedTestMap.set(t.id, {
+        id: t.id,
+        title: t.title,
+        description: t.description,
+        examType: t.exam_type,
+        testMode: t.test_mode,
+        durationMinutes: t.duration_minutes,
+        totalMarks: Number(t.total_marks) || 0,
+        markingScheme: t.marking_scheme,
+        status: t.status,
+        startTime: t.start_time,
+        endTime: t.end_time,
+        dueAt: t.end_time,
+        assignmentSource: "CLASS" as const,
+        questionCount: t.test_questions?.[0]?.count || 0,
+        activeAttempt: isCurrentActive ? activeAttempt : null,
+        latestAttempt: latest,
+        canStart,
+        actionState,
+      });
+    }
+  });
 
   const assignedTests = Array.from(assignedTestMap.values());
 
