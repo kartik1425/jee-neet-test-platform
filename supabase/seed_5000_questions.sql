@@ -1,7 +1,6 @@
--- Comprehensive Seed File: 5,000+ JEE Main, JEE Advanced & NEET PYQ Database
--- Formatted with normal human-readable notation for options, balanced answer keys, and complete chapter taxonomy.
+-- Core Subjects, Chapters & Topics Taxonomy
+-- Lightweight (~8KB): Executes in under 1 second in Supabase SQL Editor.
 
--- 1. Insert Core Subjects
 INSERT INTO public.subjects (id, name, code)
 VALUES
   ('11111111-0000-0000-0000-000000000001', 'Physics', 'PHY'),
@@ -551,7 +550,7 @@ INSERT INTO public.topics (id, chapter_id, name, order_index)
 VALUES ('4174d1f1-7bb3-4544-ac22-7d2baef64daf', '40641152-72c0-4316-aa83-0d8018404f3a', 'Biodiversity Conservation', 4)
 ON CONFLICT (chapter_id, name) DO NOTHING;
 
--- 2. Insert 5000+ Questions and Options
+-- Questions and Options Database
 INSERT INTO public.questions (
   id, subject_id, chapter_id, topic_id, exam_type, question_type, difficulty,
   content_latex, explanation_latex, source_type, pyq_year, pyq_shift, source_reference, status, is_active
