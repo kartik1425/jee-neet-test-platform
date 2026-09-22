@@ -13,9 +13,19 @@ export function LatexRenderer({ content, className = "" }: LatexRendererProps) {
     if (!content) return "";
 
     try {
-      // Split by display math $$...$$ and inline math $...$
-      // Replace $$...$$ first
-      let processed = content.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
+      let textToProcess = content;
+
+      // Check if text has unwrapped LaTeX commands like \frac, \sqrt, \alpha, etc.
+      // If found without $...$, wrap them or render them safely
+      if (textToProcess.includes("\\frac") || textToProcess.includes("\\sqrt") || textToProcess.includes("\\int") || textToProcess.includes("\\det")) {
+        // If there are no $ in the string, wrap entire formula in $...$
+        if (!textToProcess.includes("$")) {
+          textToProcess = `$${textToProcess}$`;
+        }
+      }
+
+      // Replace display math $$...$$
+      let processed = textToProcess.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
         try {
           return `<div class="my-2 overflow-x-auto">${katex.renderToString(math.trim(), {
             displayMode: true,

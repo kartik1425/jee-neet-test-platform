@@ -108,17 +108,24 @@ export async function checkPracticePoolAvailabilityAction(
   const supabase = await createClient();
 
   // 1. Fetch Candidate Questions matching taxonomy & approved PYQ status
-  const { data: candidateRows } = await supabase
+  let query = supabase
     .from("questions")
     .select(`
       *,
       question_options (*)
     `)
-    .eq("exam_type", config.examType)
     .in("subject_id", config.subjectIds)
     .in("chapter_id", config.chapterIds)
     .eq("status", "APPROVED")
     .eq("is_active", true);
+
+  if (config.examType === "JEE_ADV") {
+    query = query.or("exam_type.eq.JEE_ADV,exam_type.eq.JEE_ADVANCED");
+  } else {
+    query = query.eq("exam_type", config.examType);
+  }
+
+  const { data: candidateRows } = await query;
 
   const candidates: CandidateQuestionWithProvenance[] = (candidateRows || []).map((q: any) => ({
     ...q,
@@ -218,7 +225,7 @@ export async function generateSelfPracticeTestAction(
   const supabase = await createClient();
 
   // 1. Fetch Candidate Questions
-  const { data: candidateRows, error: candErr } = await supabase
+  let candQuery = supabase
     .from("questions")
     .select(`
       *,
@@ -226,11 +233,18 @@ export async function generateSelfPracticeTestAction(
       chapters!questions_chapter_id_fkey(name),
       question_options (*)
     `)
-    .eq("exam_type", config.examType)
     .in("subject_id", config.subjectIds)
     .in("chapter_id", config.chapterIds)
     .eq("status", "APPROVED")
     .eq("is_active", true);
+
+  if (config.examType === "JEE_ADV") {
+    candQuery = candQuery.or("exam_type.eq.JEE_ADV,exam_type.eq.JEE_ADVANCED");
+  } else {
+    candQuery = candQuery.eq("exam_type", config.examType);
+  }
+
+  const { data: candidateRows, error: candErr } = await candQuery;
 
   if (candErr || !candidateRows) {
     return { success: false, error: "Failed to retrieve questions from question bank." };

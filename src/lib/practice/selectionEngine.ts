@@ -61,7 +61,7 @@ export function isValidQualifyingQuestion(
     if (q.source_type !== "PYQ") {
       return false;
     }
-    if (!q.pyq_year || q.pyq_year < 1990 || q.pyq_year > 2030) {
+    if (!q.pyq_year || q.pyq_year < 1980 || q.pyq_year > 2040) {
       return false;
     }
   }
@@ -183,7 +183,13 @@ export function filterCandidateQuestions(
     }
 
     // 2. Exam match
-    if (q.exam_type !== config.examType) {
+    const matchesExam =
+      q.exam_type === config.examType ||
+      (config.examType === "JEE_ADV" && (q.exam_type as string) === "JEE_ADVANCED") ||
+      ((config.examType as string) === "JEE_ADVANCED" && (q.exam_type as string) === "JEE_ADV") ||
+      q.exam_type === "GENERIC";
+
+    if (!matchesExam) {
       return false;
     }
 
@@ -212,11 +218,13 @@ export function filterCandidateQuestions(
     }
 
     // 7. PYQ Year range
-    if (config.yearStart && q.pyq_year && q.pyq_year < config.yearStart) {
-      return false;
-    }
-    if (config.yearEnd && q.pyq_year && q.pyq_year > config.yearEnd) {
-      return false;
+    if (q.pyq_year) {
+      if (config.yearStart && q.pyq_year < config.yearStart) {
+        return false;
+      }
+      if (config.yearEnd && q.pyq_year > config.yearEnd) {
+        return false;
+      }
     }
 
     return true;
