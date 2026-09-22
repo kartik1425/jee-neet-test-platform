@@ -8,6 +8,7 @@ import {
   QuestionScoringItem,
 } from "@/types/scoring";
 import { MarkingSchemeConfig } from "@/types/database";
+import { processAttemptMistakes } from "@/lib/mistakes/pipeline";
 
 /**
  * Score an Exam Attempt Deterministically.
@@ -269,7 +270,7 @@ export async function scoreAttemptAction(attemptId: string): Promise<Determinist
       const newIncorrect = (currentStats?.total_incorrect || 0) + (isCor ? 0 : 1);
       const newAcc = Math.round((newCorrect / newAttempted) * 10000) / 100;
 
-      await supabase.from("student_topic_stats").upsert({
+      const statPayload = {
         student_id: attempt.student_id,
         topic_id: qRes.topicId,
         total_attempted: newAttempted,
@@ -277,8 +278,21 @@ export async function scoreAttemptAction(attemptId: string): Promise<Determinist
         total_incorrect: newIncorrect,
         accuracy_percentage: newAcc,
         last_attempted_at: new Date().toISOString(),
-      });
+      };
+
+      if (currentStats) {
+        await supabase.from("student_topic_stats").update(statPayload).eq("id", currentStats.id);
+      } else {
+        await supabase.from("student_topic_stats").insert(statPayload);
+      }
     }
+  }
+
+  // E. Process Mistakes & Error Taxonomy
+  try {
+    await processAttemptMistakes(attemptId, supabase);
+  } catch (mErr) {
+    console.warn("Non-fatal mistake processing warning:", mErr);
   }
 
   return scoreReport;

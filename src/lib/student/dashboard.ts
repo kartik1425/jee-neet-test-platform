@@ -235,7 +235,33 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
     };
   }
 
-  // 3. Fetch Completed Test Results
+  // 3. Auto-sync any submitted attempts that have not yet been scored
+  const { data: submittedAttempts } = await supabase
+    .from("attempts")
+    .select("id")
+    .eq("student_id", studentId)
+    .in("status", ["SUBMITTED", "AUTO_SUBMITTED"]);
+
+  if (submittedAttempts && submittedAttempts.length > 0) {
+    const { data: existingResults } = await supabase
+      .from("test_results")
+      .select("attempt_id")
+      .eq("student_id", studentId);
+
+    const existingAttemptIds = new Set((existingResults || []).map((r: any) => r.attempt_id));
+    for (const att of submittedAttempts) {
+      if (!existingAttemptIds.has(att.id)) {
+        try {
+          const { scoreAttemptAction } = await import("@/lib/scoring/engine");
+          await scoreAttemptAction(att.id);
+        } catch (sErr) {
+          console.warn(`Auto-score fallback warning for attempt ${att.id}:`, sErr);
+        }
+      }
+    }
+  }
+
+  // 4. Fetch Completed Test Results
   const { data: resultsData } = await supabase
     .from("test_results")
     .select(`

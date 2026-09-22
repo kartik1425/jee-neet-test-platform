@@ -228,7 +228,21 @@ export async function processAttemptMistakes(
         .upsert(mistakesToInsert, { onConflict: "attempt_answer_id" });
 
       if (upsertErr) {
-        console.error("Error upserting mistakes:", upsertErr);
+        for (const m of mistakesToInsert) {
+          if (!m.attempt_answer_id) continue;
+          try {
+            const sel = supabase.from("mistakes").select("id").eq("attempt_answer_id", m.attempt_answer_id);
+            const { data: existingM } = typeof sel.maybeSingle === "function" ? await sel.maybeSingle() : { data: null };
+
+            if (existingM) {
+              await supabase.from("mistakes").update(m).eq("id", existingM.id);
+            } else {
+              await supabase.from("mistakes").insert(m);
+            }
+          } catch (fbErr) {
+            console.warn("Fallback mistake insert warning:", fbErr);
+          }
+        }
       }
     }
 
