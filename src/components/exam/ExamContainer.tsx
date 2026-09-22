@@ -37,6 +37,8 @@ export function ExamContainer({ initialState, candidateName }: ExamContainerProp
   );
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">("base");
+  const [isPaletteOpenMobile, setIsPaletteOpenMobile] = useState(false);
 
   const currentQuestion: StudentExamQuestion | undefined = questions[currentIndex];
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] : undefined;
@@ -253,10 +255,13 @@ export function ExamContainer({ initialState, candidateName }: ExamContainerProp
         activeSection={currentQuestion.section_name || "General"}
         onSelectSection={handleSelectSection}
         candidateName={candidateName}
+        fontSize={fontSize}
+        onChangeFontSize={setFontSize}
+        onToggleMobilePalette={() => setIsPaletteOpenMobile(true)}
       />
 
       {/* 2. Main Exam Arena */}
-      <main className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden max-w-7xl w-full mx-auto">
+      <main className="flex-1 flex flex-col lg:flex-row gap-3 sm:gap-4 p-2 sm:p-4 overflow-hidden max-w-7xl w-full mx-auto">
         {/* Left: Question Presentation */}
         <QuestionView
           question={currentQuestion}
@@ -265,6 +270,7 @@ export function ExamContainer({ initialState, candidateName }: ExamContainerProp
           selectedOptionId={currentAnswer?.selectedOptionId || null}
           onSelectOption={handleSelectOption}
           onClearOption={handleClearOption}
+          fontSize={fontSize}
         />
 
         {/* Right: NTA Question Palette */}
@@ -273,6 +279,8 @@ export function ExamContainer({ initialState, candidateName }: ExamContainerProp
           currentIndex={currentIndex}
           answers={answers}
           onSelectQuestion={handleSelectQuestion}
+          isOpenMobile={isPaletteOpenMobile}
+          onCloseMobile={() => setIsPaletteOpenMobile(false)}
         />
       </main>
 
@@ -285,6 +293,7 @@ export function ExamContainer({ initialState, candidateName }: ExamContainerProp
         onMarkForReviewAndNext={handleMarkForReviewAndNext}
         onClearResponse={handleClearOption}
         onSubmitClick={() => setIsSubmitModalOpen(true)}
+        onToggleMobilePalette={() => setIsPaletteOpenMobile(true)}
       />
 
       {/* 4. Submission Confirmation Modal */}
@@ -299,3 +308,4 @@ export function ExamContainer({ initialState, candidateName }: ExamContainerProp
     </div>
   );
 }
+
