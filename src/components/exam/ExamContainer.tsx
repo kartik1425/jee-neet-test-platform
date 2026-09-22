@@ -228,7 +228,7 @@ export function ExamContainer({ initialState, candidateName }: ExamContainerProp
     setIsSubmitting(true);
     try {
       await submitExamAttemptAction(initialState.attemptId, autoSubmitted);
-      router.push(`/student`);
+      router.push(`/student/results/${initialState.attemptId}`);
       router.refresh();
     } catch (err) {
       console.error("Submission error:", err);
