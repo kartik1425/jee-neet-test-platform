@@ -1,13 +1,16 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { signUpAction } from "@/lib/auth/actions";
 import { UserPlus, Lock, Mail, User, BookOpen, AlertCircle, Shield, Eye, EyeOff, ArrowRight } from "lucide-react";
 
-export default function SignUpPage() {
+function SignUpForm() {
   const [state, formAction, isPending] = useActionState(signUpAction, null);
   const [showPassword, setShowPassword] = useState(false);
+  const searchParams = useSearchParams();
+  const returnTo = searchParams?.get("returnTo") || "";
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 bg-slate-50 relative overflow-hidden">
@@ -61,6 +64,7 @@ export default function SignUpPage() {
         )}
 
         <form action={formAction} className="space-y-4">
+          {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
               Full Name
@@ -161,12 +165,23 @@ export default function SignUpPage() {
 
         <div className="pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
           Already have an account?{" "}
-          <Link href="/login" className="text-blue-600 font-bold hover:underline">
+          <Link
+            href={returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : "/login"}
+            className="text-blue-600 font-bold hover:underline"
+          >
             Sign In
           </Link>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-400">Loading...</div>}>
+      <SignUpForm />
+    </Suspense>
   );
 }
 

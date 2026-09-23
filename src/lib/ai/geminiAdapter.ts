@@ -111,6 +111,121 @@ ${rawText}
     return AIExtractedQuestionSchema.parse(rawParsed);
   }
 
+  async extractQuestionsFromMedia(
+    base64Data: string,
+    mimeType: string,
+    context?: { examType?: string; defaultSubject?: string }
+  ): Promise<AIExtractedQuestion[]> {
+    if (!this.apiKey) {
+      throw new Error("GEMINI_API_KEY is not configured.");
+    }
+
+    // Clean base64 data if it contains a data URL prefix
+    const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, "");
+
+    const systemPrompt = `You are an expert AI multimodal OCR parser for competitive examination papers (JEE Main, JEE Advanced, NEET, Physics, Chemistry, Mathematics, Biology).
+Analyze the provided document (image or PDF) and extract ALL multiple-choice questions (MCQs) into a structured JSON array.
+Requirements for each question:
+1. "question_latex": Complete question statement with all mathematical, physical, and chemical formulas properly converted to KaTeX LaTeX enclosed in $...$ for inline or $$...$$ for display math.
+2. "options": Array of EXACTLY 4 options with "option_key" ('A', 'B', 'C', 'D'), "content_latex" (with KaTeX formulas), and "is_correct" boolean.
+3. "correct_option_key": 'A', 'B', 'C', or 'D'.
+4. "explanation_latex": Step-by-step scientific solution or explanation with LaTeX.
+5. "suggested_subject_name": 'Physics', 'Chemistry', 'Mathematics', or 'Biology'.
+6. "suggested_chapter_name": Standard chapter name in Indian syllabus.
+7. "difficulty": 'EASY', 'MEDIUM', 'HARD', or 'ADVANCED'.
+8. "exam_type": '${context?.examType || "JEE_MAIN"}'.
+9. "source_type": 'INSTITUTE'.
+
+Return ONLY a JSON array of question objects: [ { ... }, { ... } ]`;
+
+    const userPrompt = `Extract all MCQs from this uploaded media sheet. Context: Exam=${context?.examType || "JEE_MAIN"}, DefaultSubject=${context?.defaultSubject || "General"}.`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${this.modelName}:generateContent?key=${this.apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType || "image/jpeg",
+                    data: cleanBase64,
+                  },
+                },
+                { text: `${systemPrompt}\n\n${userPrompt}` },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.1,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Gemini Multimodal API error (${response.status}): ${errText}`);
+    }
+
+    const data = await response.json();
+    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!candidateText) {
+      throw new Error("Empty response from Gemini multimodal parser.");
+    }
+
+    let parsedList = JSON.parse(candidateText);
+    if (!Array.isArray(parsedList)) {
+      if (parsedList && typeof parsedList === "object" && (parsedList.questions || parsedList.items)) {
+        parsedList = parsedList.questions || parsedList.items;
+      } else if (parsedList && typeof parsedList === "object" && parsedList.question_latex) {
+        parsedList = [parsedList];
+      } else {
+        parsedList = [];
+      }
+    }
+
+    return parsedList.map((item: any) => {
+      const qLatex = normalizeLatexContent(item.question_latex || item.content_latex || "");
+      const expLatex = item.explanation_latex ? normalizeLatexContent(item.explanation_latex) : null;
+      const opts = Array.isArray(item.options)
+        ? item.options.map((opt: any, idx: number) => {
+            const key = (opt.option_key || ["A", "B", "C", "D"][idx] || "A") as "A" | "B" | "C" | "D";
+            return {
+              option_key: key,
+              content_latex: normalizeLatexContent(opt.content_latex || opt.text || ""),
+              is_correct: Boolean(opt.is_correct || key === item.correct_option_key),
+            };
+          })
+        : [
+            { option_key: "A" as const, content_latex: "Option A", is_correct: true },
+            { option_key: "B" as const, content_latex: "Option B", is_correct: false },
+            { option_key: "C" as const, content_latex: "Option C", is_correct: false },
+            { option_key: "D" as const, content_latex: "Option D", is_correct: false },
+          ];
+
+      return {
+        question_latex: qLatex,
+        options: opts,
+        correct_option_key: (item.correct_option_key || "A") as "A" | "B" | "C" | "D",
+        explanation_latex: expLatex,
+        exam_type: (context?.examType as any) || item.exam_type || "JEE_MAIN",
+        suggested_subject_name: item.suggested_subject_name || context?.defaultSubject || "Physics",
+        suggested_chapter_name: item.suggested_chapter_name || "General Mechanics",
+        suggested_topic_name: item.suggested_topic_name || null,
+        difficulty: item.difficulty || "MEDIUM",
+        source_type: "INSTITUTE" as const,
+        concept_tags: item.concept_tags || [],
+        confidence: 0.95,
+      };
+    });
+  }
+
   async classifyTaxonomy(
     contentLatex: string,
     availableTaxonomy: { subjectName: string; chapterNames: string[] }[]

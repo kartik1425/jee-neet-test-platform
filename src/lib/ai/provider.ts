@@ -15,6 +15,15 @@ export interface AIProvider {
   ): Promise<AIExtractedQuestion>;
 
   /**
+   * Multimodal extraction of questions, options (A,B,C,D), and LaTeX from an image or PDF.
+   */
+  extractQuestionsFromMedia(
+    base64Data: string,
+    mimeType: string,
+    context?: { examType?: string; defaultSubject?: string }
+  ): Promise<AIExtractedQuestion[]>;
+
+  /**
    * Suggests standard taxonomy mapping (subject, chapter, topic, difficulty).
    */
   classifyTaxonomy(

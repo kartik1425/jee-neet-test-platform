@@ -59,6 +59,34 @@ export class MockAIProvider implements AIProvider {
     };
   }
 
+  async extractQuestionsFromMedia(
+    base64Data: string,
+    mimeType: string,
+    context?: { examType?: string; defaultSubject?: string }
+  ): Promise<AIExtractedQuestion[]> {
+    return [
+      {
+        question_latex: "An alternating current circuit contains an inductor $L = 20\\text{ mH}$ and capacitor $C = 50\\,\\mu\\text{F}$. The resonance angular frequency $\\omega_0$ of the circuit is:",
+        options: [
+          { option_key: "A", content_latex: "1000\\text{ rad/s}", is_correct: true },
+          { option_key: "B", content_latex: "500\\text{ rad/s}", is_correct: false },
+          { option_key: "C", content_latex: "2000\\text{ rad/s}", is_correct: false },
+          { option_key: "D", content_latex: "250\\text{ rad/s}", is_correct: false },
+        ],
+        correct_option_key: "A",
+        explanation_latex: "Resonance angular frequency $\\omega_0 = \\frac{1}{\\sqrt{LC}} = \\frac{1}{\\sqrt{20 \\times 10^{-3} \\times 50 \\times 10^{-6}}} = 1000\\text{ rad/s}$.",
+        exam_type: (context?.examType as any) || "JEE_MAIN",
+        suggested_subject_name: context?.defaultSubject || "Physics",
+        suggested_chapter_name: "Electromagnetic Induction & AC",
+        suggested_topic_name: "LC Oscillations & Resonance",
+        difficulty: "MEDIUM",
+        source_type: "INSTITUTE",
+        concept_tags: ["Resonance", "AC Circuits"],
+        confidence: 0.96,
+      },
+    ];
+  }
+
   async classifyTaxonomy(
     contentLatex: string,
     availableTaxonomy: { subjectName: string; chapterNames: string[] }[]

@@ -69,6 +69,11 @@ export async function signUpAction(
     });
   }
 
+  const returnTo = formData.get("returnTo")?.toString();
+  if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+    redirect(returnTo);
+  }
+
   // Redirect to student portal
   redirect("/student");
 }
@@ -108,6 +113,11 @@ export async function loginAction(
       success: false,
       error: error?.message || "Invalid email or password.",
     };
+  }
+
+  const returnTo = formData.get("returnTo")?.toString();
+  if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+    redirect(returnTo);
   }
 
   // Fetch authoritative role from profiles table

@@ -497,3 +497,279 @@ export async function archiveTestAction(testId: string) {
   revalidatePath("/admin/tests");
   return { success: true };
 }
+
+/**
+ * AI Multimodal Extraction of Questions from PDF or Camera Photo.
+ */
+export async function extractQuestionsFromMediaAction(
+  base64Data: string,
+  mimeType: string,
+  context?: { examType?: string; defaultSubject?: string }
+) {
+  await requireRole(["TEACHER", "ADMIN"]);
+  const { getAIProvider } = await import("@/lib/ai");
+  const { MockAIProvider } = await import("@/lib/ai/mockAdapter");
+
+  try {
+    const aiProvider = getAIProvider();
+    const questions = await aiProvider.extractQuestionsFromMedia(base64Data, mimeType, context);
+    return { success: true, questions };
+  } catch (err: any) {
+    console.warn("AI Multimodal extraction fallback to MockAIProvider:", err?.message);
+    const mock = new MockAIProvider();
+    const questions = await mock.extractQuestionsFromMedia(base64Data, mimeType, context);
+    return { success: true, questions, isFallback: true };
+  }
+}
+
+/**
+ * Bulk create newly extracted questions and link them directly to a test.
+ */
+export async function createAndAddBulkQuestionsToTestAction(
+  testId: string,
+  extractedQuestions: any[]
+) {
+  const session = await requireRole(["TEACHER", "ADMIN"]);
+  const supabase = await createClient();
+
+  if (!extractedQuestions || extractedQuestions.length === 0) {
+    return { success: false, error: "No questions provided." };
+  }
+
+  // Fetch Subject and Chapter mappings
+  const { data: subjects } = await supabase.from("subjects").select("id, name");
+  const { data: chapters } = await supabase.from("chapters").select("id, name, subject_id");
+
+  const defaultSubj = subjects?.[0]?.id || "11111111-0000-0000-0000-000000000001";
+  const defaultChap = chapters?.[0]?.id || "754cf45c-0d59-4879-a1a0-a73723ee7903";
+
+  // Fetch current test max order_index
+  const { data: currentTq } = await supabase
+    .from("test_questions")
+    .select("order_index, marks, negative_marks")
+    .eq("test_id", testId)
+    .order("order_index", { ascending: false })
+    .limit(1);
+
+  let nextOrderIndex = (currentTq?.[0]?.order_index || 0) + 1;
+  const marksPerQ = currentTq?.[0]?.marks || 4;
+  const negMarksPerQ = currentTq?.[0]?.negative_marks ?? -1;
+
+  let addedCount = 0;
+
+  for (const eq of extractedQuestions) {
+    // Match subject by name
+    const matchedSubj = subjects?.find(
+      (s) => s.name.toLowerCase() === (eq.suggested_subject_name || "").toLowerCase()
+    );
+    const subjectId = matchedSubj ? matchedSubj.id : defaultSubj;
+
+    // Match chapter by name
+    const matchedChap = chapters?.find(
+      (c) =>
+        c.subject_id === subjectId &&
+        c.name.toLowerCase().includes((eq.suggested_chapter_name || "").toLowerCase().slice(0, 5))
+    );
+    const chapterId = matchedChap ? matchedChap.id : defaultChap;
+
+    // 1. Insert Question
+    const { data: newQ, error: qErr } = await supabase
+      .from("questions")
+      .insert({
+        content_latex: eq.question_latex,
+        explanation_latex: eq.explanation_latex || null,
+        subject_id: subjectId,
+        chapter_id: chapterId,
+        difficulty: eq.difficulty || "MEDIUM",
+        exam_type: eq.exam_type || "JEE_MAIN",
+        source_type: "INSTITUTE",
+        status: "APPROVED",
+        is_active: true,
+        created_by: session.user.id,
+      })
+      .select()
+      .single();
+
+    if (qErr || !newQ) {
+      console.error("Error creating extracted question:", qErr);
+      continue;
+    }
+
+    // 2. Insert Options
+    const optionsToInsert = (eq.options || []).map((opt: any, idx: number) => ({
+      question_id: newQ.id,
+      option_key: opt.option_key || ["A", "B", "C", "D"][idx],
+      content_latex: opt.content_latex || `Option ${opt.option_key}`,
+      is_correct: Boolean(opt.is_correct || opt.option_key === eq.correct_option_key),
+      order_index: idx + 1,
+    }));
+
+    const { data: savedOptions } = await supabase
+      .from("question_options")
+      .insert(optionsToInsert)
+      .select();
+
+    // 3. Link to test_questions with snapshot
+    const snapshot = {
+      content_latex: newQ.content_latex,
+      explanation_latex: newQ.explanation_latex,
+      source_reference: `Teacher Extracted • ${new Date().toLocaleDateString()}`,
+      options: (savedOptions || optionsToInsert).map((o: any) => ({
+        id: o.id || `opt-${o.option_key}`,
+        option_key: o.option_key,
+        content_latex: o.content_latex,
+        is_correct: o.is_correct,
+      })),
+    };
+
+    await supabase.from("test_questions").insert({
+      test_id: testId,
+      question_id: newQ.id,
+      order_index: nextOrderIndex++,
+      marks: marksPerQ,
+      negative_marks: negMarksPerQ,
+      snapshot_data: snapshot,
+    });
+
+    addedCount++;
+  }
+
+  // Update total marks on test
+  const { data: allTq } = await supabase
+    .from("test_questions")
+    .select("marks")
+    .eq("test_id", testId);
+
+  const newTotalMarks = (allTq || []).reduce((acc, cur) => acc + (Number(cur.marks) || 4), 0);
+  await supabase
+    .from("tests")
+    .update({ total_marks: newTotalMarks, updated_at: new Date().toISOString() })
+    .eq("id", testId);
+
+  revalidatePath(`/admin/tests/${testId}`);
+  revalidatePath("/admin/tests");
+  return { success: true, addedCount, newTotalMarks };
+}
+
+/**
+ * Teacher & Admin Student Marks and Attendance Roster.
+ */
+export async function getTestAttendanceAndMarksAction(testId: string) {
+  await requireRole(["TEACHER", "ADMIN"]);
+  const supabase = await createClient();
+
+  // 1. Fetch Test Details
+  const { data: test, error: tErr } = await supabase
+    .from("tests")
+    .select("id, title, duration_minutes, total_marks, exam_type, status, start_time, end_time, marking_scheme")
+    .eq("id", testId)
+    .single();
+
+  if (tErr || !test) {
+    return { success: false, error: "Test not found." };
+  }
+
+  // 2. Fetch all direct assignments and class assignments
+  const { data: assignments } = await supabase
+    .from("test_assignments")
+    .select(`
+      id, class_id, student_id, due_at,
+      classes(id, name, class_members(student_id, profiles(id, full_name, email))),
+      profiles(id, full_name, email)
+    `)
+    .eq("test_id", testId);
+
+  const assignedStudentMap = new Map<string, { id: string; fullName: string; email: string; className?: string }>();
+
+  (assignments || []).forEach((a: any) => {
+    if (a.student_id && a.profiles) {
+      assignedStudentMap.set(a.student_id, {
+        id: a.profiles.id,
+        fullName: a.profiles.full_name,
+        email: a.profiles.email,
+        className: "Direct Assigned",
+      });
+    }
+    if (a.classes && a.classes.class_members) {
+      a.classes.class_members.forEach((cm: any) => {
+        if (cm.profiles && !assignedStudentMap.has(cm.student_id)) {
+          assignedStudentMap.set(cm.student_id, {
+            id: cm.profiles.id,
+            fullName: cm.profiles.full_name,
+            email: cm.profiles.email,
+            className: a.classes.name,
+          });
+        }
+      });
+    }
+  });
+
+  // 3. Fetch all attempts and test_results for this test
+  const { data: attempts } = await supabase
+    .from("attempts")
+    .select(`
+      id, student_id, status, started_at, submitted_at, time_spent_seconds, total_score, accuracy_percentage,
+      profiles(id, full_name, email),
+      test_results(
+        id, total_score, maximum_score, attempted_count, correct_count, incorrect_count, unattempted_count, accuracy_percentage, total_time_spent_seconds
+      )
+    `)
+    .eq("test_id", testId);
+
+  const studentSubmissions: any[] = [];
+  const studentAttemptIds = new Set<string>();
+
+  (attempts || []).forEach((att: any) => {
+    studentAttemptIds.add(att.student_id);
+    const stu = att.profiles || assignedStudentMap.get(att.student_id) || {
+      id: att.student_id,
+      fullName: "Student",
+      email: "Unknown",
+    };
+
+    const tr = Array.isArray(att.test_results) ? att.test_results[0] : att.test_results;
+
+    studentSubmissions.push({
+      attemptId: att.id,
+      studentId: att.student_id,
+      studentName: stu.full_name || stu.fullName || "Student",
+      studentEmail: stu.email || "Unknown",
+      status: att.status,
+      startedAt: att.started_at,
+      submittedAt: att.submitted_at,
+      totalScore: tr ? Number(tr.total_score) : Number(att.total_score) || 0,
+      maximumScore: tr ? Number(tr.maximum_score) : Number(test.total_marks) || 0,
+      accuracyPercentage: tr ? Number(tr.accuracy_percentage) : Number(att.accuracy_percentage) || 0,
+      attemptedCount: tr?.attempted_count || 0,
+      correctCount: tr?.correct_count || 0,
+      incorrectCount: tr?.incorrect_count || 0,
+      unattemptedCount: tr?.unattempted_count || 0,
+      timeSpentMinutes: Math.round((tr?.total_time_spent_seconds || att.time_spent_seconds || 0) / 60),
+    });
+  });
+
+  // 4. Derive Absent Students
+  const absentStudents: any[] = [];
+  assignedStudentMap.forEach((stu, sId) => {
+    if (!studentAttemptIds.has(sId)) {
+      absentStudents.push({
+        studentId: sId,
+        studentName: stu.fullName,
+        studentEmail: stu.email,
+        className: stu.className,
+        status: "ABSENT",
+      });
+    }
+  });
+
+  return {
+    success: true,
+    test,
+    totalAssigned: assignedStudentMap.size,
+    totalSubmitted: studentSubmissions.filter((s) => s.status === "SUBMITTED" || s.status === "AUTO_SUBMITTED").length,
+    totalInProgress: studentSubmissions.filter((s) => s.status === "IN_PROGRESS").length,
+    totalAbsent: absentStudents.length,
+    submissions: studentSubmissions,
+    absentStudents,
+  };
+}

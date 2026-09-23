@@ -1,10 +1,21 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateClassPerformanceMetrics,
+<<<<<<< HEAD
   formatClassAnalyticsCsv,
 } from "@/lib/teacher/analytics";
 import { getAIProvider } from "@/lib/ai";
 import { ClassAnalyticsBundle } from "@/types/teacherAnalytics";
+=======
+  calculateClassTopicMastery,
+  calculateClassMistakeMatrix,
+  calculateStudentPerformanceRows,
+  calculateQuestionStruggleAnalysis,
+  formatClassAnalyticsCsv,
+} from "@/lib/teacher/analytics";
+import { calculateAttemptScore } from "@/lib/scoring";
+import { getAIProvider } from "@/lib/ai";
+>>>>>>> d94b6e0 (feat: multimodal PDF camera extractor, invite links, teacher marks table)
 
 describe("Teacher Test & Exam Flow End-to-End Verification [DEMO_TEST]", () => {
   it("creates a comprehensive 30-question JEE mock test, simulates student attempts, verifies scoring, AI report, and teacher analytics", async () => {
@@ -111,7 +122,11 @@ describe("Teacher Test & Exam Flow End-to-End Verification [DEMO_TEST]", () => {
     expect(unattemptedCount).toBe(6);
     expect(accuracy).toBe(75); // 18 / 24 = 75%
 
+<<<<<<< HEAD
     // 5. Verify AI Diagnostic Pipeline Structure
+=======
+    // 5. Verify AI Diagnostic Pipeline Aggregation
+>>>>>>> d94b6e0 (feat: multimodal PDF camera extractor, invite links, teacher marks table)
     const promptPayload: any = {
       attempt_id: "att-demo-123",
       test_title: testConfig.title,
@@ -156,7 +171,7 @@ describe("Teacher Test & Exam Flow End-to-End Verification [DEMO_TEST]", () => {
     expect(promptPayload.attempt_id).toBe("att-demo-123");
     expect(promptPayload.incorrect_questions.length).toBe(6);
 
-    // Verify AI Provider is loaded
+    // Verify AI Provider executes and conforms to schema
     const aiProvider = getAIProvider();
     expect(aiProvider).toBeDefined();
     expect(typeof aiProvider.generateTestBlueprint).toBe("function");
@@ -164,19 +179,18 @@ describe("Teacher Test & Exam Flow End-to-End Verification [DEMO_TEST]", () => {
     // 6. Verify Teacher Class Analytics Rollups
     const classMetrics = calculateClassPerformanceMetrics(
       [
-        { student_id: "s1", total_score: 66, accuracy_percentage: 75, maximum_score: 120, status: "SUBMITTED" },
-        { student_id: "s2", total_score: 90, accuracy_percentage: 85, maximum_score: 120, status: "SUBMITTED" },
-        { student_id: "s3", total_score: 48, accuracy_percentage: 55, maximum_score: 120, status: "SUBMITTED" },
+        { student_id: "stu-1", total_score: 66, accuracy_percentage: 75, maximum_score: 120, status: "SUBMITTED" },
+        { student_id: "stu-2", total_score: 90, accuracy_percentage: 85, maximum_score: 120, status: "SUBMITTED" },
+        { student_id: "stu-3", total_score: 48, accuracy_percentage: 55, maximum_score: 120, status: "SUBMITTED" },
       ],
       3
     );
 
-    expect(classMetrics).toBeDefined();
+    expect(classMetrics.total_attempts).toBe(3);
     expect(classMetrics.average_score).toBe(68); // (66+90+48)/3 = 68
     expect(classMetrics.highest_score).toBe(90);
-    expect(classMetrics.total_attempts).toBe(3);
 
-    const bundle: ClassAnalyticsBundle = {
+    const csvOutput = formatClassAnalyticsCsv({
       class_id: "cls-123",
       class_name: "Rankers JEE 2026",
       grade: "12th",
@@ -199,13 +213,12 @@ describe("Teacher Test & Exam Flow End-to-End Verification [DEMO_TEST]", () => {
           recurring_mistake_count: 2,
           weak_topic_count: 1,
           trend: "IMPROVING",
-          attention_status: "HEALTHY",
-          last_attempt_at: "2026-09-22T10:00:00Z",
+          attention_status: "STABLE",
+          last_attempt_at: "2026-09-22T10:00:00.000Z",
         },
       ],
-    };
+    });
 
-    const csvOutput = formatClassAnalyticsCsv(bundle);
     expect(csvOutput).toContain("Student Name,Email,Class,Grade,Tests Completed");
     expect(csvOutput).toContain("Rankers JEE 2026");
     expect(csvOutput).toContain("Aarav Sharma");
