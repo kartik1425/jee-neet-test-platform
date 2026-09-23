@@ -143,11 +143,86 @@ export async function createIngestionBatchAction(rawInput: IngestionUploadInput)
   const subjectsList = dbSubjects || [];
   const chaptersList = dbChapters || [];
 
-  // 4. Parse Raw Document
-  let parsedRawItems =
-    fileType === "CSV"
-      ? parseCsvQuestionDocument(textContent)
-      : parseStructuredTextDocument(textContent);
+  // 4. Parse Raw Document or Media
+  const isMedia =
+    fileType === "PDF" ||
+    fileType === "IMAGE" ||
+    textContent.startsWith("data:application/pdf") ||
+    textContent.startsWith("data:image/") ||
+    textContent.startsWith("%PDF-");
+
+  let parsedRawItems: Array<{
+    raw_content: string;
+    question_text: string;
+    options: StagingOptionItem[];
+    correct_option_key?: "A" | "B" | "C" | "D" | null;
+    explanation_text?: string | null;
+    pyq_year?: number | null;
+    pyq_shift?: string | null;
+    suggested_subject_name?: string | null;
+    suggested_chapter_name?: string | null;
+    suggested_topic_name?: string | null;
+    difficulty?: string | null;
+    source_page_number?: number | null;
+    source_location_ref?: string | null;
+  }> = [];
+
+  const aiProvider = getAIProvider();
+
+  if (isMedia) {
+    let mimeType = "application/pdf";
+    if (textContent.startsWith("data:")) {
+      const match = textContent.match(/^data:([^;]+);base64,/);
+      if (match) mimeType = match[1];
+    } else if (fileType === "IMAGE") {
+      mimeType = "image/jpeg";
+    }
+
+    try {
+      const mediaQuestions = await aiProvider.extractQuestionsFromMedia(
+        textContent,
+        mimeType,
+        {
+          examType,
+          defaultSubject: subjectsList.find((s) => s.id === defaultSubjectId)?.name,
+        }
+      );
+
+      parsedRawItems = mediaQuestions.map((mq, idx) => ({
+        raw_content: mq.question_latex,
+        question_text: mq.question_latex,
+        options: mq.options,
+        correct_option_key: mq.correct_option_key,
+        explanation_text: mq.explanation_latex,
+        pyq_year: mq.pyq_year || null,
+        pyq_shift: mq.pyq_shift || null,
+        suggested_subject_name: mq.suggested_subject_name,
+        suggested_chapter_name: mq.suggested_chapter_name,
+        suggested_topic_name: mq.suggested_topic_name,
+        difficulty: mq.difficulty,
+        source_page_number: mq.source_page_number || 1,
+        source_location_ref: mq.source_location_ref || `Question ${idx + 1}`,
+      }));
+    } catch (mediaErr: any) {
+      console.error("AI Media Extraction Error:", mediaErr);
+      await supabase
+        .from("ingestion_batches")
+        .update({
+          status: "FAILED",
+          processing_error: mediaErr.message || "Failed to extract questions from media with AI.",
+        })
+        .eq("id", batch.id);
+
+      return {
+        success: false,
+        error: `AI extraction failed: ${mediaErr.message || "Could not process media document."}`,
+      };
+    }
+  } else if (fileType === "CSV") {
+    parsedRawItems = parseCsvQuestionDocument(textContent);
+  } else {
+    parsedRawItems = parseStructuredTextDocument(textContent);
+  }
 
   if (parsedRawItems.length === 0) {
     await supabase
@@ -161,7 +236,6 @@ export async function createIngestionBatchAction(rawInput: IngestionUploadInput)
     return { success: false, error: "No questions could be extracted from the document." };
   }
 
-  const aiProvider = getAIProvider();
   const stagingItemsPayload: any[] = [];
   const batchSeenTexts: { id: string; content_latex: string }[] = [];
 

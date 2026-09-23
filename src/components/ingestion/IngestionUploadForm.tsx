@@ -8,15 +8,18 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
+  Camera,
   CheckCircle2,
   FileSpreadsheet,
   FileText,
   HelpCircle,
+  Image as ImageIcon,
   Loader2,
   Lock,
   ShieldCheck,
   Sparkles,
   Upload,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -36,12 +39,15 @@ export function IngestionUploadForm({ taxonomy }: IngestionUploadFormProps) {
 
   const [title, setTitle] = useState("");
   const [rightsDeclaration, setRightsDeclaration] = useState<IngestionRightsDeclaration>("OWN_CONTENT");
-  const [fileType, setFileType] = useState<"TEXT" | "CSV" | "PDF" | "DOCX">("TEXT");
+  const [fileType, setFileType] = useState<"TEXT" | "CSV" | "PDF" | "IMAGE" | "DOCX">("TEXT");
   const [examType, setExamType] = useState<"JEE_MAIN" | "JEE_ADV" | "NEET" | "GENERIC">("JEE_MAIN");
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
   const [selectedChapterId, setSelectedChapterId] = useState<string>("");
   const [textContent, setTextContent] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
 
   const currentSubject = taxonomy.find((s) => s.id === selectedSubjectId);
   const availableChapters = currentSubject?.chapters || [];
@@ -50,21 +56,57 @@ export function IngestionUploadForm({ taxonomy }: IngestionUploadFormProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const fileName = file.name;
+    setUploadedFileName(fileName);
     if (!title) {
-      setTitle(file.name.replace(/\.[^/.]+$/, ""));
+      setTitle(fileName.replace(/\.[^/.]+$/, ""));
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      setTextContent(content);
-    };
-    reader.readAsText(file);
+    const isPdf = file.type === "application/pdf" || fileName.toLowerCase().endsWith(".pdf");
+    const isImg = file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(fileName);
+    const isCsv = file.type === "text/csv" || fileName.toLowerCase().endsWith(".csv");
+
+    if (isPdf) {
+      setFileType("PDF");
+      setImagePreviewUrl(null);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setTextContent(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else if (isImg) {
+      setFileType("IMAGE" as any);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        setTextContent(dataUrl);
+        setImagePreviewUrl(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    } else if (isCsv) {
+      setFileType("CSV");
+      setImagePreviewUrl(null);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setTextContent(event.target?.result as string);
+      };
+      reader.readAsText(file);
+    } else {
+      setFileType("TEXT");
+      setImagePreviewUrl(null);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setTextContent(event.target?.result as string);
+      };
+      reader.readAsText(file);
+    }
   };
 
   const handleLoadSampleCsv = () => {
     setTitle("JEE Main Physics PYQs Sample");
     setFileType("CSV");
+    setUploadedFileName(null);
+    setImagePreviewUrl(null);
     setExamType("JEE_MAIN");
     setTextContent(`Question,Option A,Option B,Option C,Option D,Correct Answer,Solution,Exam,Year,Subject,Chapter,Difficulty
 "A particle moves in a circle of radius $r = 2\\text{ m}$ with constant speed $v = 4\\text{ m/s}$. Find centripetal acceleration.","4 $\\text{m/s}^2$","8 $\\text{m/s}^2$","16 $\\text{m/s}^2$","2 $\\text{m/s}^2$",B,"Centripetal acceleration $a_c = \\frac{v^2}{r} = \\frac{16}{2} = 8\\text{ m/s}^2$.",JEE_MAIN,2023,Physics,Kinematics,EASY
@@ -74,6 +116,8 @@ export function IngestionUploadForm({ taxonomy }: IngestionUploadFormProps) {
   const handleLoadSampleText = () => {
     setTitle("NEET Chemistry Rapid Drill 2024");
     setFileType("TEXT");
+    setUploadedFileName(null);
+    setImagePreviewUrl(null);
     setExamType("NEET");
     setTextContent(`Q1. What is the pH of a $10^{-3}\\text{ M}$ aqueous solution of $\\text{HCl}$ at $25^\\circ\\text{C}$?
 (A) 3
@@ -269,18 +313,24 @@ Solution: $\\text{Molar mass} = 2(2) + 16 = 20\\text{ g/mol}$.`);
             </div>
 
             {/* Format Selector */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {[
                 { id: "TEXT", label: "Text / Word", icon: FileText },
-                { id: "CSV", label: "CSV Spreadsheet", icon: FileSpreadsheet },
+                { id: "CSV", label: "CSV Sheet", icon: FileSpreadsheet },
                 { id: "PDF", label: "PDF Extraction", icon: Upload },
+                { id: "IMAGE", label: "Camera / Image", icon: Camera },
               ].map((fmt) => {
                 const Icon = fmt.icon;
                 return (
                   <button
                     key={fmt.id}
                     type="button"
-                    onClick={() => setFileType(fmt.id as any)}
+                    onClick={() => {
+                      setFileType(fmt.id as any);
+                      if (fmt.id === "TEXT" || fmt.id === "CSV") {
+                        setImagePreviewUrl(null);
+                      }
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
                       fileType === fmt.id
                         ? "bg-slate-900 text-white border-slate-900"
@@ -294,37 +344,100 @@ Solution: $\\text{Molar mass} = 2(2) + 16 = 20\\text{ g/mol}$.`);
               })}
             </div>
 
-            {/* File Upload Trigger */}
-            <div className="p-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 text-center space-y-2">
-              <input
-                type="file"
-                id="file-upload"
-                accept=".txt,.csv,.doc,.docx,.pdf"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <label
-                htmlFor="file-upload"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 shadow-xs hover:bg-slate-50 text-xs font-bold text-slate-700 cursor-pointer transition"
-              >
-                <Upload className="w-4 h-4 text-indigo-600" />
-                <span>Upload Document File</span>
-              </label>
-              <p className="text-[11px] text-slate-400">Supports .txt, .csv, .docx, .pdf</p>
+            {/* File & Camera Upload Triggers */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-4 rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 text-center space-y-2 flex flex-col items-center justify-center">
+                <input
+                  type="file"
+                  id="file-upload"
+                  accept=".txt,.csv,.doc,.docx,.pdf,image/png,image/jpeg,image/webp"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 shadow-xs hover:bg-slate-50 text-xs font-bold text-slate-700 cursor-pointer transition"
+                >
+                  <Upload className="w-4 h-4 text-indigo-600" />
+                  <span>Upload PDF or File</span>
+                </label>
+                <p className="text-[11px] text-slate-400">Supports PDF, CSV, TXT, DOCX</p>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 text-center space-y-2 flex flex-col items-center justify-center">
+                <input
+                  type="file"
+                  id="camera-upload"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="camera-upload"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 shadow-xs hover:bg-slate-50 text-xs font-bold text-slate-700 cursor-pointer transition"
+                >
+                  <Camera className="w-4 h-4 text-emerald-600" />
+                  <span>📸 Snap via Camera</span>
+                </label>
+                <p className="text-[11px] text-slate-400">Capture photo of question sheet</p>
+              </div>
             </div>
+
+            {/* Attached Media Banner */}
+            {(uploadedFileName || imagePreviewUrl || (fileType === "PDF" && textContent.startsWith("data:"))) && (
+              <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
+                    {fileType === "PDF" ? <Upload className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <span className="font-bold text-indigo-950 block truncate max-w-xs">
+                      {uploadedFileName || (fileType === "PDF" ? "PDF Document Attached" : "Media File Attached")}
+                    </span>
+                    <span className="text-[11px] text-indigo-700">
+                      Gemini Multimodal AI will scan and extract all LaTeX questions & options
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTextContent("");
+                    setUploadedFileName(null);
+                    setImagePreviewUrl(null);
+                  }}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-white transition"
+                  title="Remove attached file"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {imagePreviewUrl && (
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                <img
+                  src={imagePreviewUrl}
+                  alt="Captured Question Sheet"
+                  className="max-h-52 mx-auto rounded-xl border border-slate-200 object-contain shadow-xs"
+                />
+              </div>
+            )}
 
             {/* Direct Textarea */}
             <div>
               <label className="text-xs font-semibold text-slate-700 block mb-1">
-                Document Text Content
+                Document Text Content {textContent.startsWith("data:") && "(Binary / Media Payload Loaded)"}
               </label>
               <textarea
-                rows={12}
+                rows={textContent.startsWith("data:") ? 3 : 10}
                 required
                 placeholder={`Paste question text here with Q1, options (A)-(D), Answer, and Solution.\n\nExample:\nQ1. A body of mass $m = 5\\text{ kg}$ is dropped from height $h = 20\\text{ m}$. Find its velocity just before hitting the ground ($g = 10\\text{ m/s}^2$).\n(A) $10\\text{ m/s}$\n(B) $20\\text{ m/s}$\n(C) $30\\text{ m/s}$\n(D) $40\\text{ m/s}$\nAns: B\nSolution: $v = \\sqrt{2gh} = \\sqrt{2 \\times 10 \\times 20} = 20\\text{ m/s}$.`}
                 value={textContent}
                 onChange={(e) => setTextContent(e.target.value)}
-                className="w-full p-3 font-mono text-xs rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 leading-relaxed"
+                className="w-full p-3 font-mono text-xs rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 leading-relaxed truncate"
               />
             </div>
           </div>

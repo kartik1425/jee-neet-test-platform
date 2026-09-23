@@ -121,7 +121,13 @@ ${rawText}
     }
 
     // Clean base64 data if it contains a data URL prefix
-    const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, "");
+    let cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, "");
+    // If input is raw string rather than standard base64 characters, convert to base64
+    if (!cleanBase64.match(/^[A-Za-z0-9+/=\r\n]+$/)) {
+      cleanBase64 = Buffer.from(cleanBase64, "binary").toString("base64");
+    } else {
+      cleanBase64 = cleanBase64.replace(/[\r\n]/g, "");
+    }
 
     const systemPrompt = `You are an expert AI multimodal OCR parser for competitive examination papers (JEE Main, JEE Advanced, NEET, Physics, Chemistry, Mathematics, Biology).
 Analyze the provided document (image or PDF) and extract ALL multiple-choice questions (MCQs) into a structured JSON array.
