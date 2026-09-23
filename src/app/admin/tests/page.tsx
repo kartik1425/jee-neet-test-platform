@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Sparkles,
 } from "lucide-react";
+import { TestCardShareButton } from "@/components/tests/TestCardShareButton";
 
 export const dynamic = "force-dynamic";
 
@@ -203,6 +204,17 @@ export default async function AdminTestsPage({ searchParams }: TestsPageProps) {
 
                   {/* Actions */}
                   <div className="flex flex-wrap items-center gap-2">
+                    {/* Share Invite Link */}
+                    <TestCardShareButton testId={t.id} testTitle={t.title} />
+
+                    <Link
+                      href={`/admin/tests/${t.id}`}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition"
+                      title="View Student Attendance and Marks"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Marks & Attendance
+                    </Link>
+
                     <Link
                       href={`/admin/tests/${t.id}/preview`}
                       className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"

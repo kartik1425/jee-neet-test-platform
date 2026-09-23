@@ -24,7 +24,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AdminPortalPage() {
-  const session = await requireRole(["ADMIN"]);
+  const session = await requireRole(["TEACHER", "ADMIN"]);
   const { profile, user } = session;
   const supabase = await createClient();
 
