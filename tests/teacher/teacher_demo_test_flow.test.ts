@@ -1,21 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateClassPerformanceMetrics,
-<<<<<<< HEAD
-  formatClassAnalyticsCsv,
-} from "@/lib/teacher/analytics";
-import { getAIProvider } from "@/lib/ai";
-import { ClassAnalyticsBundle } from "@/types/teacherAnalytics";
-=======
-  calculateClassTopicMastery,
-  calculateClassMistakeMatrix,
-  calculateStudentPerformanceRows,
-  calculateQuestionStruggleAnalysis,
   formatClassAnalyticsCsv,
 } from "@/lib/teacher/analytics";
 import { calculateAttemptScore } from "@/lib/scoring";
 import { getAIProvider } from "@/lib/ai";
->>>>>>> d94b6e0 (feat: multimodal PDF camera extractor, invite links, teacher marks table)
+import { ClassAnalyticsBundle } from "@/types/teacherAnalytics";
 
 describe("Teacher Test & Exam Flow End-to-End Verification [DEMO_TEST]", () => {
   it("creates a comprehensive 30-question JEE mock test, simulates student attempts, verifies scoring, AI report, and teacher analytics", async () => {
@@ -122,11 +112,7 @@ describe("Teacher Test & Exam Flow End-to-End Verification [DEMO_TEST]", () => {
     expect(unattemptedCount).toBe(6);
     expect(accuracy).toBe(75); // 18 / 24 = 75%
 
-<<<<<<< HEAD
-    // 5. Verify AI Diagnostic Pipeline Structure
-=======
     // 5. Verify AI Diagnostic Pipeline Aggregation
->>>>>>> d94b6e0 (feat: multimodal PDF camera extractor, invite links, teacher marks table)
     const promptPayload: any = {
       attempt_id: "att-demo-123",
       test_title: testConfig.title,
