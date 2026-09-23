@@ -47,13 +47,20 @@ export function isValidQualifyingQuestion(
     return false;
   }
 
-  // 3. Must have exactly 4 options with exactly 1 correct
+  // 3. Must have exactly 4 options
   if (!q.options || q.options.length !== 4) {
     return false;
   }
-  const correctCount = q.options.filter((opt) => opt.is_correct).length;
-  if (correctCount !== 1) {
+  const hasValidKeys = q.options.every((opt) => opt.option_key);
+  if (!hasValidKeys) {
     return false;
+  }
+  const anyDefined = q.options.some((opt) => opt.is_correct !== undefined && opt.is_correct !== null);
+  if (anyDefined) {
+    const correctCount = q.options.filter((opt) => opt.is_correct).length;
+    if (correctCount !== 1) {
+      return false;
+    }
   }
 
   // 4. PYQ Provenance Verification

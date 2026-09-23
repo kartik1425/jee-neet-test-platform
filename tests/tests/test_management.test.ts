@@ -68,11 +68,15 @@ describe("Phase 6 Admin Test Management & Lifecycle Suite", () => {
           negative_marks: -1,
           question: {
             id: "q-101",
+            subject_id: "sub-1",
+            chapter_id: "chap-1",
+            question_type: "SINGLE_MCQ",
+            is_active: true,
             content_latex: "Find the limit as $x \\to 0$",
             status: "APPROVED",
             exam_type: "JEE_MAIN",
             difficulty: "MEDIUM",
-            source_type: "ORIGINAL",
+            source_type: "INSTITUTE",
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             options: [

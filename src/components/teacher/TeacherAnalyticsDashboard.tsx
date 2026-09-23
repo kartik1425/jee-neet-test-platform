@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
+import Link from "next/link";
 import {
   TeacherClassItem,
   ClassAnalyticsBundle,
@@ -37,6 +38,7 @@ import {
   Info,
   Clock,
   Layers,
+  ExternalLink,
 } from "lucide-react";
 
 interface TeacherAnalyticsDashboardProps {
@@ -994,13 +996,24 @@ export function TeacherAnalyticsDashboard({
                               </div>
                             </div>
 
-                            <div className="text-right">
-                              <span className="font-bold text-slate-900">
-                                {att.score} / {att.max_score}
-                              </span>
-                              <span className="ml-2 font-semibold text-emerald-600">
-                                ({att.accuracy}%)
-                              </span>
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <span className="font-bold text-slate-900">
+                                  {att.score} / {att.max_score}
+                                </span>
+                                <span className="ml-1.5 font-semibold text-emerald-600">
+                                  ({att.accuracy}%)
+                                </span>
+                              </div>
+
+                              <Link
+                                href={`/student/results/${att.attempt_id}`}
+                                target="_blank"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/60 rounded-lg transition"
+                              >
+                                <span>Scorecard</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </Link>
                             </div>
                           </div>
                         ))}

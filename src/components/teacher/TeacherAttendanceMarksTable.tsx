@@ -71,6 +71,7 @@ export function TeacherAttendanceMarksTable({
     const presentRows = submissions.map((s) => ({
       type: "PRESENT" as const,
       id: s.attemptId,
+      attemptId: s.attemptId,
       studentId: s.studentId,
       studentName: s.studentName,
       studentEmail: s.studentEmail,
@@ -88,6 +89,7 @@ export function TeacherAttendanceMarksTable({
     const absentRows = absentStudents.map((a) => ({
       type: "ABSENT" as const,
       id: `absent-${a.studentId}`,
+      attemptId: null,
       studentId: a.studentId,
       studentName: a.studentName,
       studentEmail: a.studentEmail,
@@ -358,7 +360,7 @@ export function TeacherAttendanceMarksTable({
                     <td className="p-3.5 text-right">
                       {isSubmitted ? (
                         <Link
-                          href={`/student/results/${row.id}`}
+                          href={`/student/results/${row.attemptId}`}
                           className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition"
                           target="_blank"
                         >

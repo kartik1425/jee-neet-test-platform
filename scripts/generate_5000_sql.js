@@ -1,18 +1,6 @@
-<<<<<<< HEAD
-// scripts/generate_5000_sql.js
-// High performance script to generate modular SQL seed files and 5000+ JEE/NEET PYQs.
-// Generates:
-// 1. supabase/seed_taxonomy.sql (Ultra lightweight ~8KB, runs instantly in SQL Editor)
-// 2. supabase/seed_part1.sql to seed_part5.sql (1,000 questions each, fits under SQL Editor limits)
-// 3. supabase/seed_5000_questions.sql (Master consolidated file)
-
-=======
->>>>>>> d94b6e0 (feat: multimodal PDF camera extractor, invite links, teacher marks table)
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-
-<<<<<<< HEAD
 function uuidv4FromSeed(seedStr) {
   const hash = crypto.createHash('sha256').update(seedStr).digest('hex');
   return [
@@ -919,4 +907,3 @@ function generateFullSql() {
 }
 
 generateFullSql();
->>>>>>> d94b6e0 (feat: multimodal PDF camera extractor, invite links, teacher marks table)

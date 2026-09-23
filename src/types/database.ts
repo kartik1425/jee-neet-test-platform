@@ -55,7 +55,7 @@ export interface QuestionOption {
   content_latex: string;
   is_correct: boolean;
   order_index: number;
-  created_at: string;
+  created_at?: string;
 }
 
 export interface Question {

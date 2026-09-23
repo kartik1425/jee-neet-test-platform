@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/auth/session";
 import {
   SelfTestConfigSchema,
@@ -17,6 +18,17 @@ import {
   categorizeQuestionsByPriority,
 } from "./selectionEngine";
 import { revalidatePath } from "next/cache";
+
+function getDbClient(fallbackSupabase: any) {
+  try {
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return createAdminClient();
+    }
+  } catch {
+    // Fallback to user session supabase
+  }
+  return fallbackSupabase;
+}
 
 /**
  * Fetch Taxonomy (Subjects, Chapters, Topics) filtered for the chosen Exam Type.
@@ -106,9 +118,10 @@ export async function checkPracticePoolAvailabilityAction(
 
   const config = parsed.data;
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
   // 1. Fetch Candidate Questions matching taxonomy & approved PYQ status
-  let query = supabase
+  let query = dbClient
     .from("questions")
     .select(`
       *,
@@ -223,9 +236,10 @@ export async function generateSelfPracticeTestAction(
 
   const config = parsed.data;
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
   // 1. Fetch Candidate Questions
-  let candQuery = supabase
+  let candQuery = dbClient
     .from("questions")
     .select(`
       *,
@@ -370,7 +384,7 @@ export async function generateSelfPracticeTestAction(
     };
   });
 
-  const { error: insertTqErr } = await supabase
+  const { error: insertTqErr } = await dbClient
     .from("test_questions")
     .insert(testQuestionsPayload);
 

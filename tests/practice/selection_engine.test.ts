@@ -190,6 +190,7 @@ describe("Phase 8 Deterministic Question Selection Engine Suite", () => {
       examType: "JEE_MAIN",
       subjectIds: ["sub-phy", "sub-chem"],
       chapterIds: ["chap-sub-phy", "chap-sub-chem"],
+      topicIds: [],
       difficulty: "MEDIUM",
       questionCount: 20,
       durationMinutes: 60,

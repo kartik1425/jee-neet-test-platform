@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 -- Core Subjects, Chapters & Topics Taxonomy
 -- Lightweight (~8KB): Executes in under 1 second in Supabase SQL Editor.
 
@@ -171391,4 +171390,3 @@ INSERT INTO public.question_options (id, question_id, option_key, content_latex,
 INSERT INTO public.question_options (id, question_id, option_key, content_latex, is_correct, order_index) VALUES ('e93ab9c8-2659-4b8a-a554-4c4b0759c0cb', 'e9ab94aa-b4f7-4156-ae1a-3e61273d29d8', 'B', '$3.5 C_0$', FALSE, 2) ON CONFLICT (question_id, option_key) DO NOTHING;
 INSERT INTO public.question_options (id, question_id, option_key, content_latex, is_correct, order_index) VALUES ('80b81021-75af-4997-afc8-58ac75f31810', 'e9ab94aa-b4f7-4156-ae1a-3e61273d29d8', 'C', '$2 C_0$', FALSE, 3) ON CONFLICT (question_id, option_key) DO NOTHING;
 INSERT INTO public.question_options (id, question_id, option_key, content_latex, is_correct, order_index) VALUES ('d5e778cf-c328-49f6-ac4b-b81467a9bf25', 'e9ab94aa-b4f7-4156-ae1a-3e61273d29d8', 'D', '$4 C_0$', TRUE, 4) ON CONFLICT (question_id, option_key) DO NOTHING;
->>>>>>> d94b6e0 (feat: multimodal PDF camera extractor, invite links, teacher marks table)

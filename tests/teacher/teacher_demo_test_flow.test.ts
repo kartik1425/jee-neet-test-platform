@@ -3,7 +3,6 @@ import {
   calculateClassPerformanceMetrics,
   formatClassAnalyticsCsv,
 } from "@/lib/teacher/analytics";
-import { calculateAttemptScore } from "@/lib/scoring";
 import { getAIProvider } from "@/lib/ai";
 import { ClassAnalyticsBundle } from "@/types/teacherAnalytics";
 
@@ -165,9 +164,9 @@ describe("Teacher Test & Exam Flow End-to-End Verification [DEMO_TEST]", () => {
     // 6. Verify Teacher Class Analytics Rollups
     const classMetrics = calculateClassPerformanceMetrics(
       [
-        { student_id: "stu-1", total_score: 66, accuracy_percentage: 75, maximum_score: 120, status: "SUBMITTED" },
-        { student_id: "stu-2", total_score: 90, accuracy_percentage: 85, maximum_score: 120, status: "SUBMITTED" },
-        { student_id: "stu-3", total_score: 48, accuracy_percentage: 55, maximum_score: 120, status: "SUBMITTED" },
+        { student_id: "stu-1", total_score: 66, accuracy_percentage: 75, status: "SUBMITTED" },
+        { student_id: "stu-2", total_score: 90, accuracy_percentage: 85, status: "SUBMITTED" },
+        { student_id: "stu-3", total_score: 48, accuracy_percentage: 55, status: "SUBMITTED" },
       ],
       3
     );
