@@ -12,8 +12,8 @@ import { LogOut, Sparkles, Flame, ArrowRight } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function StudentPortalPage() {
-  await requireRole(["STUDENT", "TEACHER", "ADMIN"]);
-  const dashboardData = await getStudentDashboardData();
+  const session = await requireRole(["STUDENT", "TEACHER", "ADMIN"]);
+  const dashboardData = await getStudentDashboardData(session);
   const { profile, activeAttempt, assignedTests, practiceTests, recentAttempts, metrics } = dashboardData;
 
   return (

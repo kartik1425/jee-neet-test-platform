@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getRoleDashboardPath, requireAuth } from "./session";
-import { LoginSchema, SignUpSchema, UpdateProfileSchema } from "@/types/auth";
+import { LoginSchema, SignUpSchema, UpdateProfileSchema, UserRole } from "@/types/auth";
 import { redirect } from "next/navigation";
 
 export interface ActionResponse {
@@ -120,14 +120,20 @@ export async function loginAction(
     redirect(returnTo);
   }
 
-  // Fetch authoritative role from profiles table
+  // Fast path: derive role directly from auth metadata to eliminate blocking DB roundtrip
+  const userMetaRole = data.user.user_metadata?.role || data.user.app_metadata?.role;
+  if (userMetaRole && ["STUDENT", "TEACHER", "ADMIN"].includes(userMetaRole)) {
+    redirect(getRoleDashboardPath(userMetaRole as UserRole));
+  }
+
+  // Fallback: fetch authoritative role from profiles table if not present in metadata
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", data.user.id)
     .single();
 
-  const role = profile?.role || "STUDENT";
+  const role = (profile?.role as UserRole) || "STUDENT";
   redirect(getRoleDashboardPath(role));
 }
 

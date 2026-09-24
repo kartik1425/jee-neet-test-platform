@@ -11,18 +11,23 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [autoSubmitting, setAutoSubmitting] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const returnTo = searchParams?.get("returnTo") || "";
 
-  const handleFillDemoStudent = () => {
-    setEmail("priyagon200@gmail.com");
+  const handleInstantDemo = (demoEmail: string, demoRole: string) => {
+    setEmail(demoEmail);
     setPassword("123456");
+    setAutoSubmitting(demoRole);
+
+    const formData = new FormData();
+    formData.append("email", demoEmail);
+    formData.append("password", "123456");
+    if (returnTo) formData.append("returnTo", returnTo);
+    formAction(formData);
   };
 
-  const handleFillDemoTeacher = () => {
-    setEmail("starsea.real@gmail.com");
-    setPassword("123456");
-  };
+  const isLoggingIn = isPending || autoSubmitting !== null;
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center px-4 py-8 sm:py-12 bg-slate-50 relative overflow-hidden">
@@ -64,32 +69,46 @@ function LoginForm() {
             Welcome back
           </h1>
           <p className="text-xs text-slate-500">
-            Enter your credentials or tap a 1-click demo button below to test instantly from any device.
+            Enter your credentials or tap a 1-click demo button below to login instantly.
           </p>
         </div>
 
-        {/* 1-Click Fast Demo Fillers for Mobile / Multi-Device Testing */}
-        <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/80 space-y-2">
+        {/* 1-Click Fast Demo Buttons */}
+        <div className="p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/80 space-y-2.5">
           <div className="flex items-center justify-between text-[11px] font-bold text-blue-900">
-            <span className="flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              Instant 1-Click Demo Accounts:
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+              ⚡ Instant 1-Click Demo Login:
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={handleFillDemoStudent}
-              className="py-2 px-2.5 rounded-xl bg-white hover:bg-blue-600 text-slate-800 hover:text-white border border-blue-200 text-xs font-bold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+              disabled={isLoggingIn}
+              onClick={() => handleInstantDemo("priyagon200@gmail.com", "Student")}
+              className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              🎓 Student Demo
+              {autoSubmitting === "Student" ? (
+                <span>Logging In...</span>
+              ) : (
+                <>
+                  <span>🎓 Student Demo</span>
+                </>
+              )}
             </button>
             <button
               type="button"
-              onClick={handleFillDemoTeacher}
-              className="py-2 px-2.5 rounded-xl bg-white hover:bg-indigo-600 text-slate-800 hover:text-white border border-indigo-200 text-xs font-bold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+              disabled={isLoggingIn}
+              onClick={() => handleInstantDemo("starsea.real@gmail.com", "Teacher")}
+              className="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              👨‍🏫 Teacher Demo
+              {autoSubmitting === "Teacher" ? (
+                <span>Logging In...</span>
+              ) : (
+                <>
+                  <span>👨‍🏫 Teacher Demo</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -154,10 +173,10 @@ function LoginForm() {
 
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isLoggingIn}
             className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
           >
-            {isPending ? (
+            {isLoggingIn ? (
               <span>Authenticating...</span>
             ) : (
               <>

@@ -1,5 +1,18 @@
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { requireRole } from "@/lib/auth/session";
+import { requireRole, AuthSession } from "@/lib/auth/session";
+
+function getDbClient(fallbackSupabase: any) {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (serviceRoleKey && supabaseUrl) {
+    return createServiceClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  return fallbackSupabase;
+}
+
 import {
   StudentDashboardData,
   StudentTestSummary,
@@ -187,16 +200,91 @@ export function computeTestActionState(
 /**
  * Fetch Comprehensive Data for Student Portal Dashboard.
  */
-export async function getStudentDashboardData(): Promise<StudentDashboardData> {
-  const session = await requireRole(["STUDENT", "TEACHER", "ADMIN"]);
+export async function getStudentDashboardData(
+  preloadedSession?: AuthSession
+): Promise<StudentDashboardData> {
+  const session = preloadedSession || (await requireRole(["STUDENT", "TEACHER", "ADMIN"]));
   const studentId = session.user.id;
   const supabase = await createClient();
+  const db = getDbClient(supabase);
 
-  // 1. Fetch Enrolled Classes
-  const { data: memberRows } = await supabase
-    .from("class_members")
-    .select("class_id, classes (id, name, grade)")
-    .eq("student_id", studentId);
+  // 1. Parallel independent queries: classes, active attempt, submitted attempts, completed results, published tests, practice tests
+  const [
+    { data: memberRows },
+    { data: activeAttemptRow },
+    { data: submittedAttempts },
+    { data: resultsData },
+    { data: officialTests },
+    { data: practiceRows },
+  ] = await Promise.all([
+    // 1. Enrolled Classes
+    db
+      .from("class_members")
+      .select("class_id, classes (id, name, grade)")
+      .eq("student_id", studentId),
+
+    // 2. Active (In-Progress) Attempt
+    db
+      .from("attempts")
+      .select(`
+        id, test_id, started_at, server_end_time, status,
+        tests (
+          id, title, exam_type, duration_minutes,
+          test_questions (count)
+        )
+      `)
+      .eq("student_id", studentId)
+      .eq("status", "IN_PROGRESS")
+      .maybeSingle(),
+
+    // 3. Submitted Unscored Attempts Sync
+    db
+      .from("attempts")
+      .select("id")
+      .eq("student_id", studentId)
+      .in("status", ["SUBMITTED", "AUTO_SUBMITTED"])
+      .limit(10),
+
+    // 4. Completed Test Results
+    db
+      .from("test_results")
+      .select(`
+        id, attempt_id, test_id, total_score, maximum_score, total_questions,
+        attempted_count, correct_count, incorrect_count, unattempted_count,
+        accuracy_percentage, total_time_spent_seconds,
+        subject_breakdown, chapter_breakdown, topic_breakdown, calculated_at,
+        tests (id, title, exam_type)
+      `)
+      .eq("student_id", studentId)
+      .order("calculated_at", { ascending: false })
+      .limit(50),
+
+    // 5. Published Official / Teacher Mock & Scheduled Tests
+    db
+      .from("tests")
+      .select(`
+        id, title, description, exam_type, test_mode, duration_minutes, total_marks,
+        marking_scheme, status, start_time, end_time,
+        test_questions (count)
+      `)
+      .in("test_mode", ["MOCK", "SCHEDULED"])
+      .in("status", ["PUBLISHED", "LIVE", "SCHEDULED"])
+      .limit(50),
+
+    // 6. Student's Own Private Practice Tests
+    db
+      .from("tests")
+      .select(`
+        id, title, description, exam_type, test_mode, duration_minutes, total_marks,
+        marking_scheme, status, start_time, end_time,
+        test_questions (count)
+      `)
+      .eq("test_mode", "PRACTICE_SELF")
+      .eq("created_by", studentId)
+      .in("status", ["PUBLISHED", "LIVE"])
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
 
   const classes = (memberRows || []).map((m: any) => ({
     classId: m.class_id,
@@ -204,21 +292,7 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
     grade: m.classes?.grade || "12th",
   }));
 
-  const classIds = classes.map((c) => c.classId);
-
-  // 2. Fetch Active (In-Progress) Attempt
-  const { data: activeAttemptRow } = await supabase
-    .from("attempts")
-    .select(`
-      id, test_id, started_at, server_end_time, status,
-      tests (
-        id, title, exam_type, duration_minutes,
-        test_questions (count)
-      )
-    `)
-    .eq("student_id", studentId)
-    .eq("status", "IN_PROGRESS")
-    .maybeSingle();
+  const classIds = classes.map((c: { classId: string }) => c.classId);
 
   let activeAttempt: StudentActiveAttemptSummary | null = null;
   if (activeAttemptRow && activeAttemptRow.tests) {
@@ -235,62 +309,23 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
     };
   }
 
-  // 3. Auto-sync any submitted attempts that have not yet been scored
-  const { data: submittedAttempts } = await supabase
-    .from("attempts")
-    .select("id")
-    .eq("student_id", studentId)
-    .in("status", ["SUBMITTED", "AUTO_SUBMITTED"]);
-
+  // 2. Fast non-blocking auto-sync for any unscored submitted attempt
   if (submittedAttempts && submittedAttempts.length > 0) {
-    const { data: existingResults } = await supabase
-      .from("test_results")
-      .select("attempt_id")
-      .eq("student_id", studentId);
-
-    const existingAttemptIds = new Set((existingResults || []).map((r: any) => r.attempt_id));
+    const scoredIds = new Set((resultsData || []).map((r: any) => r.attempt_id));
     for (const att of submittedAttempts) {
-      if (!existingAttemptIds.has(att.id)) {
+      if (!scoredIds.has(att.id)) {
         try {
           const { scoreAttemptAction } = await import("@/lib/scoring/engine");
           await scoreAttemptAction(att.id);
         } catch (sErr) {
-          console.warn(`Auto-score fallback warning for attempt ${att.id}:`, sErr);
+          console.warn(`Auto-score sync warning for attempt ${att.id}:`, sErr);
         }
       }
     }
   }
 
-  // 4. Fetch Completed Test Results
-  const { data: resultsData } = await supabase
-    .from("test_results")
-    .select(`
-      id, attempt_id, test_id, total_score, maximum_score, total_questions,
-      attempted_count, correct_count, incorrect_count, unattempted_count,
-      accuracy_percentage, total_time_spent_seconds,
-      subject_breakdown, chapter_breakdown, topic_breakdown, calculated_at,
-      tests (id, title, exam_type)
-    `)
-    .eq("student_id", studentId)
-    .order("calculated_at", { ascending: false });
-
-  const recentAttempts: StudentAttemptHistoryRecord[] = (resultsData || []).map((r: any) => ({
-    attemptId: r.attempt_id,
-    testId: r.test_id,
-    testTitle: r.tests?.title || "Exam Paper",
-    examType: r.tests?.exam_type || "JEE_MAIN",
-    submittedAt: r.calculated_at,
-    totalScore: Number(r.total_score) || 0,
-    maximumScore: Number(r.maximum_score) || 0,
-    accuracyPercentage: Number(r.accuracy_percentage) || 0,
-    attemptedCount: Number(r.attempted_count) || 0,
-    correctCount: Number(r.correct_count) || 0,
-    incorrectCount: Number(r.incorrect_count) || 0,
-    totalTimeSpentSeconds: Number(r.total_time_spent_seconds) || 0,
-  }));
-
-  // 4. Fetch Direct and Class Test Assignments
-  const { data: assignmentRows } = await supabase
+  // 3. Fetch assignments in parallel with class IDs
+  const { data: assignmentRows } = await db
     .from("test_assignments")
     .select(`
       id, test_id, class_id, student_id, due_at,
@@ -306,29 +341,20 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
         : `student_id.eq.${studentId}`
     );
 
-  // 5. Fetch Published Official / Teacher Mock & Scheduled Tests
-  const { data: officialTests } = await supabase
-    .from("tests")
-    .select(`
-      id, title, description, exam_type, test_mode, duration_minutes, total_marks,
-      marking_scheme, status, start_time, end_time,
-      test_questions (count)
-    `)
-    .in("test_mode", ["MOCK", "SCHEDULED"])
-    .in("status", ["PUBLISHED", "LIVE", "SCHEDULED"]);
-
-  // 6. Fetch Student's Own Private Practice Tests
-  const { data: practiceRows } = await supabase
-    .from("tests")
-    .select(`
-      id, title, description, exam_type, test_mode, duration_minutes, total_marks,
-      marking_scheme, status, start_time, end_time,
-      test_questions (count)
-    `)
-    .eq("test_mode", "PRACTICE_SELF")
-    .eq("created_by", studentId)
-    .in("status", ["PUBLISHED", "LIVE"])
-    .order("created_at", { ascending: false });
+  const recentAttempts: StudentAttemptHistoryRecord[] = (resultsData || []).map((r: any) => ({
+    attemptId: r.attempt_id,
+    testId: r.test_id,
+    testTitle: r.tests?.title || "Exam Paper",
+    examType: r.tests?.exam_type || "JEE_MAIN",
+    submittedAt: r.calculated_at,
+    totalScore: Number(r.total_score) || 0,
+    maximumScore: Number(r.maximum_score) || 0,
+    accuracyPercentage: Number(r.accuracy_percentage) || 0,
+    attemptedCount: Number(r.attempted_count) || 0,
+    correctCount: Number(r.correct_count) || 0,
+    incorrectCount: Number(r.incorrect_count) || 0,
+    totalTimeSpentSeconds: Number(r.total_time_spent_seconds) || 0,
+  }));
 
   const resultMapByTestId = new Map<string, any>();
   recentAttempts.forEach((r) => {
