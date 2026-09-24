@@ -21,18 +21,18 @@ export default function UnauthorizedPage() {
           <p>If you believe this is an error, please contact your institutional administrator.</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-2.5">
           <Link
-            href="/"
-            className="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5"
+            href="/student"
+            className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5"
           >
-            <Home className="w-4 h-4" /> Return Home
+            🎓 Student Portal
           </Link>
           <Link
             href="/login"
             className="flex-1 py-2.5 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-1.5"
           >
-            <ArrowLeft className="w-4 h-4" /> Sign In Again
+            <ArrowLeft className="w-4 h-4" /> Sign In
           </Link>
         </div>
       </div>

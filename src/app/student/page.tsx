@@ -33,6 +33,14 @@ export default async function StudentPortalPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {profile.role && profile.role !== "STUDENT" && (
+            <Link
+              href={profile.role === "ADMIN" ? "/admin" : "/teacher"}
+              className="px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl border border-indigo-200 transition"
+            >
+              Switch to {profile.role === "ADMIN" ? "Admin Console" : "Teacher Console"}
+            </Link>
+          )}
           <div className="text-right hidden sm:block">
             <p className="text-xs font-bold text-slate-800">{profile.fullName}</p>
             <p className="text-[10px] text-slate-500">{profile.email}</p>

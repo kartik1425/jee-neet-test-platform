@@ -11,6 +11,7 @@ export interface StudentDashboardProfile {
   id: string;
   fullName: string;
   email: string;
+  role?: string;
   targetExam: ExamType;
   avatarUrl?: string | null;
   classes: StudentClassEnrollment[];

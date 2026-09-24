@@ -120,7 +120,13 @@ export default async function AdminPortalPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/student"
+            className="px-3.5 py-1.5 text-xs font-bold text-blue-300 bg-blue-950/60 hover:bg-blue-900/60 rounded-xl border border-blue-800 transition"
+          >
+            🎓 Student Portal
+          </Link>
           <div className="text-right hidden sm:block">
             <p className="text-sm font-semibold text-white">{profile.full_name}</p>
             <p className="text-xs text-slate-400">{user.email}</p>

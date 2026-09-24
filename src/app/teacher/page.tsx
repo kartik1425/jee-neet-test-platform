@@ -85,12 +85,11 @@ export default async function TeacherPortalPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/student"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition"
           >
             <GraduationCap className="w-3.5 h-3.5" />
-            <span>Student View</span>
+            <span>Student Portal</span>
           </Link>
-
           <div className="text-right hidden sm:block">
             <p className="text-xs font-bold text-slate-800">{profile.full_name}</p>
             <p className="text-[10px] text-slate-500">{user.email}</p>

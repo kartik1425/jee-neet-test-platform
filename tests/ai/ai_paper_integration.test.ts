@@ -41,10 +41,10 @@ describe("Phase 10 AI Test Generation Integration & Publication Pipeline", () =>
         created_at: "2026-01-01",
         updated_at: "2026-01-01",
         options: [
-          { id: `opt-${id}-A`, question_id: id, option_key: "A", content_latex: "10 N m", is_correct: true, order_index: 1 },
-          { id: `opt-${id}-B`, question_id: id, option_key: "B", content_latex: "20 N m", is_correct: false, order_index: 2 },
-          { id: `opt-${id}-C`, question_id: id, option_key: "C", content_latex: "30 N m", is_correct: false, order_index: 3 },
-          { id: `opt-${id}-D`, question_id: id, option_key: "D", content_latex: "40 N m", is_correct: false, order_index: 4 },
+          { id: `opt-${id}-A`, question_id: id, option_key: "A", content_latex: "10 N m", is_correct: true, order_index: 1, created_at: "2026-01-01" },
+          { id: `opt-${id}-B`, question_id: id, option_key: "B", content_latex: "20 N m", is_correct: false, order_index: 2, created_at: "2026-01-01" },
+          { id: `opt-${id}-C`, question_id: id, option_key: "C", content_latex: "30 N m", is_correct: false, order_index: 3, created_at: "2026-01-01" },
+          { id: `opt-${id}-D`, question_id: id, option_key: "D", content_latex: "40 N m", is_correct: false, order_index: 4, created_at: "2026-01-01" },
         ],
       });
     }

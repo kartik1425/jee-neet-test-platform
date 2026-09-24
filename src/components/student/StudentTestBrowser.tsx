@@ -245,7 +245,7 @@ export function StudentTestBrowser({ assignedTests, practiceTests }: StudentTest
                     </span>
 
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 font-medium">
-                      +{test.markingScheme.correct} / {test.markingScheme.incorrect}
+                      +{test.markingScheme?.correct ?? 4} / {test.markingScheme?.incorrect ?? -1}
                     </span>
                   </div>
 
