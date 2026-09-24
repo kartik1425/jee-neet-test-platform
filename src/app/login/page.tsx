@@ -1,33 +1,81 @@
 "use client";
 
-import { useActionState, useState, Suspense } from "react";
+import { useActionState, useState, useTransition, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { loginAction } from "@/lib/auth/actions";
-import { LogIn, Lock, Mail, AlertCircle, Eye, EyeOff, Sparkles, ArrowRight } from "lucide-react";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
+import { LogIn, Lock, Mail, AlertCircle, Eye, EyeOff, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 
 function LoginForm() {
-  const [state, formAction, isPending] = useActionState(loginAction, null);
+  const router = useRouter();
+  const [state, formAction, isServerPending] = useActionState(loginAction, null);
+  const [isClientPending, startClientTransition] = useTransition();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
   const [autoSubmitting, setAutoSubmitting] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const returnTo = searchParams?.get("returnTo") || "";
 
+  const executeFastLogin = async (targetEmail: string, targetPass: string, roleLabel?: string) => {
+    setClientError(null);
+    if (roleLabel) setAutoSubmitting(roleLabel);
+
+    startClientTransition(async () => {
+      try {
+        const supabase = createBrowserClient();
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: targetEmail,
+          password: targetPass,
+        });
+
+        if (error || !data.user) {
+          // Fallback to server action
+          const formData = new FormData();
+          formData.append("email", targetEmail);
+          formData.append("password", targetPass);
+          if (returnTo) formData.append("returnTo", returnTo);
+          formAction(formData);
+          return;
+        }
+
+        const role = (data.user.user_metadata?.role || data.user.app_metadata?.role) || "STUDENT";
+        const redirectPath = returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+          ? returnTo
+          : role === "TEACHER"
+          ? "/teacher"
+          : role === "ADMIN"
+          ? "/admin"
+          : "/student";
+
+        window.location.href = redirectPath;
+      } catch (err: any) {
+        console.error("Client login error, falling back:", err);
+        const formData = new FormData();
+        formData.append("email", targetEmail);
+        formData.append("password", targetPass);
+        if (returnTo) formData.append("returnTo", returnTo);
+        formAction(formData);
+      }
+    });
+  };
+
   const handleInstantDemo = (demoEmail: string, demoRole: string) => {
     setEmail(demoEmail);
     setPassword("123456");
-    setAutoSubmitting(demoRole);
-
-    const formData = new FormData();
-    formData.append("email", demoEmail);
-    formData.append("password", "123456");
-    if (returnTo) formData.append("returnTo", returnTo);
-    formAction(formData);
+    executeFastLogin(demoEmail, "123456", demoRole);
   };
 
-  const isLoggingIn = isPending || autoSubmitting !== null;
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+    executeFastLogin(email, password);
+  };
+
+  const isLoggingIn = isServerPending || isClientPending || autoSubmitting !== null;
+
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center px-4 py-8 sm:py-12 bg-slate-50 relative overflow-hidden">
@@ -113,14 +161,14 @@ function LoginForm() {
           </div>
         </div>
 
-        {state?.error && (
+        {(clientError || state?.error) && (
           <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>{state.error}</span>
+            <span>{clientError || state?.error}</span>
           </div>
         )}
 
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} onSubmit={handleManualSubmit} className="space-y-4">
           {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">

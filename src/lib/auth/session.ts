@@ -23,6 +23,23 @@ export async function getAuthSession(): Promise<AuthSession | null> {
       return null;
     }
 
+    // Fast-path: Check if role and target_exam exist in user metadata to avoid blocking network query
+    const userRole = (user.user_metadata?.role || user.app_metadata?.role) as UserRole | undefined;
+    if (userRole && ["STUDENT", "TEACHER", "ADMIN"].includes(userRole)) {
+      return {
+        user: { id: user.id, email: user.email },
+        profile: {
+          id: user.id,
+          email: user.email,
+          full_name: (user.user_metadata?.full_name as string) || (user.user_metadata?.name as string) || "Student",
+          role: userRole,
+          target_exam: (user.user_metadata?.target_exam as any) || "JEE_MAIN",
+          created_at: user.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      };
+    }
+
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
