@@ -27,7 +27,7 @@ export function LatexRenderer({ content, className = "" }: LatexRendererProps) {
       // Replace display math $$...$$
       let processed = textToProcess.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
         try {
-          return `<div class="my-2 overflow-x-auto">${katex.renderToString(math.trim(), {
+          return `<div class="my-2 overflow-x-auto max-w-full py-0.5">${katex.renderToString(math.trim(), {
             displayMode: true,
             throwOnError: false,
           })}</div>`;
@@ -39,10 +39,10 @@ export function LatexRenderer({ content, className = "" }: LatexRendererProps) {
       // Replace inline math $...$
       processed = processed.replace(/\$([^\$\n]+?)\$/g, (_, math) => {
         try {
-          return katex.renderToString(math.trim(), {
+          return `<span class="inline-block max-w-full overflow-x-auto align-middle">${katex.renderToString(math.trim(), {
             displayMode: false,
             throwOnError: false,
-          });
+          })}</span>`;
         } catch (e) {
           return `$${math}$`;
         }
@@ -60,8 +60,9 @@ export function LatexRenderer({ content, className = "" }: LatexRendererProps) {
 
   return (
     <div
-      className={`katex-content text-slate-900 leading-relaxed ${className}`}
+      className={`katex-content text-slate-900 leading-relaxed break-words overflow-x-auto max-w-full ${className}`}
       dangerouslySetInnerHTML={{ __html: renderedHtml }}
     />
   );
 }
+

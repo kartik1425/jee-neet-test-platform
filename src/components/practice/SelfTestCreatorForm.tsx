@@ -215,7 +215,7 @@ export function SelfTestCreatorForm() {
               <span className="text-xs text-slate-400 font-medium">Step 1 of 6</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
               {[
                 { id: "JEE_MAIN", label: "JEE Main", color: "blue" },
                 { id: "JEE_ADV", label: "JEE Advanced", color: "purple" },
@@ -225,7 +225,7 @@ export function SelfTestCreatorForm() {
                   key={exam.id}
                   type="button"
                   onClick={() => setExamType(exam.id as any)}
-                  className={`p-4 rounded-2xl border text-center font-bold text-sm transition cursor-pointer ${
+                  className={`p-3.5 sm:p-4 rounded-2xl border text-center font-bold text-xs sm:text-sm transition cursor-pointer ${
                     examType === exam.id
                       ? "border-purple-600 bg-purple-50/60 text-purple-900 ring-2 ring-purple-600/20 shadow-xs"
                       : "border-slate-200 hover:border-slate-300 text-slate-700 bg-white"
@@ -347,7 +347,7 @@ export function SelfTestCreatorForm() {
             {/* Difficulty Tabs */}
             <div className="space-y-2">
               <span className="text-xs font-semibold text-slate-600 block">Difficulty Level</span>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                 {[
                   { id: "ANY", label: "Any / Mixed" },
                   { id: "EASY", label: "Easy" },

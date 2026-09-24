@@ -131,7 +131,7 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
 
       {/* SECTION 1: EXECUTIVE SUMMARY */}
       {(activeTab === "ALL" || activeTab === "SUMMARY") && (
-        <section className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm space-y-6">
+        <section className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 lg:p-8 shadow-sm space-y-6">
           <div className="flex items-center gap-2.5 text-slate-900 border-b border-slate-100 pb-4">
             <Sparkles className="w-5 h-5 text-indigo-600" />
             <h3 className="text-lg font-black tracking-tight">1. Executive Summary</h3>
@@ -140,7 +140,7 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
           {ai ? (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
+                <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
                   <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold uppercase tracking-wider">
                     <TrendingUp className="w-4 h-4" /> Demonstrated Strengths
                   </div>
@@ -149,7 +149,7 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
                   </p>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
+                <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
                   <div className="flex items-center gap-2 text-amber-800 text-xs font-bold uppercase tracking-wider">
                     <AlertTriangle className="w-4 h-4" /> Focus Areas
                   </div>
@@ -159,7 +159,7 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
                 </div>
               </div>
 
-              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Pedagogical Interpretation
                 </span>
@@ -180,19 +180,19 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
 
       {/* SECTION 2: SUBJECT PERFORMANCE */}
       {(activeTab === "ALL" || activeTab === "SUBJECTS") && (
-        <section className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm space-y-6">
+        <section className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 lg:p-8 shadow-sm space-y-6">
           <div className="flex items-center gap-2.5 text-slate-900 border-b border-slate-100 pb-4">
             <BookOpen className="w-5 h-5 text-blue-600" />
             <h3 className="text-lg font-black tracking-tight">2. Subject Performance</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
             {payload.subject_metrics.map((subj) => {
               const aiSubj = ai?.subject_analysis.find((s) => s.subject_name === subj.subject_name);
               return (
                 <div
                   key={subj.subject_id}
-                  className="p-5 rounded-2xl bg-slate-50/80 border border-slate-200 flex flex-col justify-between space-y-4"
+                  className="p-4 sm:p-5 rounded-2xl bg-slate-50/80 border border-slate-200 flex flex-col justify-between space-y-4"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -236,13 +236,13 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
 
       {/* SECTION 3: CHAPTER WEAKNESSES & EVIDENCE STATUS */}
       {(activeTab === "ALL" || activeTab === "CHAPTERS") && (
-        <section className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm space-y-6">
+        <section className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 lg:p-8 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2.5 text-slate-900">
               <Target className="w-5 h-5 text-rose-600" />
               <h3 className="text-lg font-black tracking-tight">3. Chapter & Topic Weaknesses</h3>
             </div>
-            <span className="text-xs text-slate-400 font-medium">
+            <span className="text-xs text-slate-400 font-medium hidden sm:inline">
               Deterministic threshold: ≥3 Qs for confirmed diagnosis
             </span>
           </div>
@@ -275,8 +275,8 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
                     )}
                   </div>
 
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="text-right text-xs">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
+                    <div className="text-left sm:text-right text-xs">
                       <div className="font-bold text-slate-900">
                         {ch.correct}/{ch.attempted} Correct ({ch.accuracy}%)
                       </div>
@@ -302,7 +302,7 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
 
       {/* SECTION 4: MISTAKE ANALYSIS */}
       {(activeTab === "ALL" || activeTab === "MISTAKES") && (
-        <section className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm space-y-6">
+        <section className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 lg:p-8 shadow-sm space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2.5 text-slate-900">
               <XCircle className="w-5 h-5 text-red-600" />
@@ -312,12 +312,12 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
             </div>
 
             {/* Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-bold">
+            <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-bold pb-1 sm:pb-0">
               {["ALL", "CONCEPTUAL", "CALCULATION", "MISREAD", "TIME_PRESSURE"].map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setMistakeFilter(cat)}
-                  className={`px-3 py-1.5 rounded-lg transition ${
+                  className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap ${
                     mistakeFilter === cat
                       ? "bg-red-600 text-white"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -342,11 +342,11 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
                 return (
                   <div
                     key={iq.question_id || idx}
-                    className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3"
+                    className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 pb-3">
                       <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center">
+                        <span className="w-6 h-6 rounded-full bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center shrink-0">
                           {idx + 1}
                         </span>
                         <span className="text-xs font-bold text-slate-900">
@@ -359,7 +359,7 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
 
                       <div className="flex items-center gap-3 text-xs">
                         <span className="text-slate-500">
-                          Time spent: <strong className="text-slate-800">{iq.time_spent_seconds}s</strong>
+                          Time: <strong className="text-slate-800">{iq.time_spent_seconds}s</strong>
                         </span>
                         <span className="text-red-600 font-bold">
                           {iq.marks_awarded} marks
@@ -367,7 +367,7 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs">
                       <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-1">
                         <div className="flex items-center justify-between">
                           <span className="text-slate-400 font-medium">Selected Option:</span>
@@ -409,34 +409,34 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
 
       {/* SECTION 5: TIME & ATTEMPT STRATEGY */}
       {(activeTab === "ALL" || activeTab === "TIME") && (
-        <section className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm space-y-6">
+        <section className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 lg:p-8 shadow-sm space-y-6">
           <div className="flex items-center gap-2.5 text-slate-900 border-b border-slate-100 pb-4">
             <Clock className="w-5 h-5 text-amber-600" />
             <h3 className="text-lg font-black tracking-tight">5. Time & Attempt Strategy</h3>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
               <span className="text-xs text-slate-500 font-semibold">Avg Time / Q</span>
-              <p className="text-2xl font-black text-slate-900">
+              <p className="text-xl sm:text-2xl font-black text-slate-900">
                 {payload.time_metrics.avg_time_per_question_seconds}s
               </p>
             </div>
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1">
               <span className="text-xs text-emerald-700 font-semibold">Avg on Correct</span>
-              <p className="text-2xl font-black text-emerald-900">
+              <p className="text-xl sm:text-2xl font-black text-emerald-900">
                 {payload.time_metrics.avg_time_correct_seconds}s
               </p>
             </div>
-            <div className="p-4 rounded-2xl bg-red-50 border border-red-200 space-y-1">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-red-50 border border-red-200 space-y-1">
               <span className="text-xs text-red-700 font-semibold">Avg on Incorrect</span>
-              <p className="text-2xl font-black text-red-900">
+              <p className="text-xl sm:text-2xl font-black text-red-900">
                 {payload.time_metrics.avg_time_incorrect_seconds}s
               </p>
             </div>
-            <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 space-y-1">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-blue-50 border border-blue-200 space-y-1">
               <span className="text-xs text-blue-700 font-semibold">Late-Exam Accuracy</span>
-              <p className="text-2xl font-black text-blue-900">
+              <p className="text-xl sm:text-2xl font-black text-blue-900">
                 {payload.time_metrics.late_exam_accuracy !== null
                   ? `${payload.time_metrics.late_exam_accuracy}%`
                   : "N/A"}
@@ -445,7 +445,7 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
           </div>
 
           {ai?.time_strategy && (
-            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
               <div className="space-y-1">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Pacing Evaluation
@@ -472,7 +472,7 @@ export function DiagnosticReportView({ initialReport }: DiagnosticReportViewProp
 
       {/* SECTION 6: AI IMPROVEMENT PLAN */}
       {(activeTab === "ALL" || activeTab === "ACTION_PLAN") && (
-        <section className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm space-y-6">
+        <section className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 lg:p-8 shadow-sm space-y-6">
           <div className="flex items-center gap-2.5 text-slate-900 border-b border-slate-100 pb-4">
             <Flame className="w-5 h-5 text-orange-600" />
             <h3 className="text-lg font-black tracking-tight">6. Targeted AI Improvement Plan</h3>

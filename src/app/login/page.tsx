@@ -8,12 +8,24 @@ import { LogIn, Lock, Mail, AlertCircle, Eye, EyeOff, Sparkles, ArrowRight } fro
 
 function LoginForm() {
   const [state, formAction, isPending] = useActionState(loginAction, null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const searchParams = useSearchParams();
   const returnTo = searchParams?.get("returnTo") || "";
 
+  const handleFillDemoStudent = () => {
+    setEmail("priyagon200@gmail.com");
+    setPassword("123456");
+  };
+
+  const handleFillDemoTeacher = () => {
+    setEmail("starsea.real@gmail.com");
+    setPassword("123456");
+  };
+
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 bg-slate-50 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col justify-center items-center px-4 py-8 sm:py-12 bg-slate-50 relative overflow-hidden">
       {/* Subtle background glow */}
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -30,7 +42,7 @@ function LoginForm() {
         </Link>
       </div>
 
-      <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 space-y-6 relative z-10">
+      <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl p-5 sm:p-8 space-y-5 relative z-10">
         {/* Tab switch between Sign In and Sign Up */}
         <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl text-xs font-bold">
           <button
@@ -52,8 +64,34 @@ function LoginForm() {
             Welcome back
           </h1>
           <p className="text-xs text-slate-500">
-            Enter your credentials to access your mock examinations & diagnostic reports.
+            Enter your credentials or tap a 1-click demo button below to test instantly from any device.
           </p>
+        </div>
+
+        {/* 1-Click Fast Demo Fillers for Mobile / Multi-Device Testing */}
+        <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/80 space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-bold text-blue-900">
+            <span className="flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+              Instant 1-Click Demo Accounts:
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={handleFillDemoStudent}
+              className="py-2 px-2.5 rounded-xl bg-white hover:bg-blue-600 text-slate-800 hover:text-white border border-blue-200 text-xs font-bold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+            >
+              🎓 Student Demo
+            </button>
+            <button
+              type="button"
+              onClick={handleFillDemoTeacher}
+              className="py-2 px-2.5 rounded-xl bg-white hover:bg-indigo-600 text-slate-800 hover:text-white border border-indigo-200 text-xs font-bold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+            >
+              👨‍🏫 Teacher Demo
+            </button>
+          </div>
         </div>
 
         {state?.error && (
@@ -75,6 +113,8 @@ function LoginForm() {
                 name="email"
                 type="email"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="student@school.edu"
                 className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm bg-slate-50/70 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
               />
@@ -94,13 +134,15 @@ function LoginForm() {
                 name="password"
                 type={showPassword ? "text" : "password"}
                 required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm bg-slate-50/70 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition"
+                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition cursor-pointer"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
