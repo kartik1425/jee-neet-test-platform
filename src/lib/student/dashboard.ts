@@ -309,18 +309,18 @@ export async function getStudentDashboardData(
     };
   }
 
-  // 2. Fast non-blocking auto-sync for any unscored submitted attempt
+  // 2. Non-blocking background auto-sync for any unscored submitted attempt
   if (submittedAttempts && submittedAttempts.length > 0) {
     const scoredIds = new Set((resultsData || []).map((r: any) => r.attempt_id));
-    for (const att of submittedAttempts) {
-      if (!scoredIds.has(att.id)) {
-        try {
-          const { scoreAttemptAction } = await import("@/lib/scoring/engine");
-          await scoreAttemptAction(att.id);
-        } catch (sErr) {
-          console.warn(`Auto-score sync warning for attempt ${att.id}:`, sErr);
-        }
-      }
+    const unscored = submittedAttempts.filter((att: any) => !scoredIds.has(att.id));
+    if (unscored.length > 0) {
+      import("@/lib/scoring/engine").then(({ scoreAttemptAction }) => {
+        unscored.forEach((att: any) => {
+          scoreAttemptAction(att.id).catch((err) =>
+            console.warn(`Background auto-score warning for attempt ${att.id}:`, err)
+          );
+        });
+      }).catch(() => {});
     }
   }
 
