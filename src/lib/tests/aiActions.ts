@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getAIProvider } from "@/lib/ai";
 import {
   AITestBlueprint,
@@ -14,16 +15,28 @@ import {
 } from "./aiPaperGenerator";
 import { Subject, Chapter, TestStatus } from "@/types/database";
 
+function getDbClient(fallbackSupabase: any) {
+  try {
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return createAdminClient();
+    }
+  } catch {
+    // Fallback
+  }
+  return fallbackSupabase;
+}
+
 /**
  * Helper to fetch database curriculum taxonomy.
  */
 async function fetchDatabaseTaxonomy(supabase: any): Promise<DBTaxonomyContext> {
-  const { data: subjectsData } = await supabase
+  const dbClient = getDbClient(supabase);
+  const { data: subjectsData } = await dbClient
     .from("subjects")
     .select("id, name, code, created_at")
     .order("name", { ascending: true });
 
-  const { data: chaptersData } = await supabase
+  const { data: chaptersData } = await dbClient
     .from("chapters")
     .select("id, subject_id, name, order_index, created_at")
     .order("order_index", { ascending: true });
@@ -121,6 +134,7 @@ export async function createAITestDraftAction(
       };
     }
 
+    const dbClient = getDbClient(supabase);
     const taxonomy = await fetchDatabaseTaxonomy(supabase);
 
     // Fetch recent question IDs to exclude
@@ -128,7 +142,7 @@ export async function createAITestDraftAction(
     const excludeCount = blueprint.source_constraints.exclude_recent_test_count || 0;
 
     if (excludeCount > 0) {
-      const { data: recentTests } = await supabase
+      const { data: recentTests } = await dbClient
         .from("tests")
         .select("id")
         .eq("created_by", user.id)
@@ -137,7 +151,7 @@ export async function createAITestDraftAction(
 
       if (recentTests && recentTests.length > 0) {
         const testIds = recentTests.map((t: any) => t.id);
-        const { data: recentQuestions } = await supabase
+        const { data: recentQuestions } = await dbClient
           .from("test_questions")
           .select("question_id")
           .in("test_id", testIds);
@@ -149,7 +163,7 @@ export async function createAITestDraftAction(
     }
 
     // Query candidate questions from database
-    const { data: questionsData, error: qErr } = await supabase
+    const { data: questionsData, error: qErr } = await dbClient
       .from("questions")
       .select(`
         id, subject_id, chapter_id, topic_id, exam_type, question_type,
@@ -191,7 +205,7 @@ export async function createAITestDraftAction(
     }
 
     // Insert DRAFT test into tests table
-    const { data: testRecord, error: testErr } = await supabase
+    const { data: testRecord, error: testErr } = await dbClient
       .from("tests")
       .insert({
         title: blueprint.title,
@@ -231,7 +245,7 @@ export async function createAITestDraftAction(
 
     let secOrder = 1;
     for (const [secName, qList] of sectionMap.entries()) {
-      const { data: sectionRecord } = await supabase
+      const { data: sectionRecord } = await dbClient
         .from("test_sections")
         .insert({
           test_id: testId,
@@ -252,7 +266,7 @@ export async function createAITestDraftAction(
         negative_marks: Math.abs(blueprint.marking_scheme.incorrect),
       }));
 
-      await supabase.from("test_questions").insert(tqInserts);
+      await dbClient.from("test_questions").insert(tqInserts);
     }
 
     return {
@@ -293,8 +307,10 @@ export async function replaceDraftQuestionAction(
       return { success: false, error: "Unauthorized." };
     }
 
+    const dbClient = getDbClient(supabase);
+
     // 1. Fetch test and verify status is DRAFT
-    const { data: test } = await supabase
+    const { data: test } = await dbClient
       .from("tests")
       .select("id, status, created_by, exam_type")
       .eq("id", testId)
@@ -305,7 +321,7 @@ export async function replaceDraftQuestionAction(
     }
 
     // 2. Fetch existing question IDs in this test
-    const { data: existingTQs } = await supabase
+    const { data: existingTQs } = await dbClient
       .from("test_questions")
       .select("id, question_id, section_id, order_index")
       .eq("test_id", testId);
@@ -318,7 +334,7 @@ export async function replaceDraftQuestionAction(
     const currentQuestionIds = new Set((existingTQs || []).map((t: any) => t.question_id));
 
     // 3. Fetch old question taxonomy to find matching replacement
-    const { data: oldQ } = await supabase
+    const { data: oldQ } = await dbClient
       .from("questions")
       .select("subject_id, chapter_id, difficulty")
       .eq("id", oldQuestionId)
@@ -329,7 +345,7 @@ export async function replaceDraftQuestionAction(
     }
 
     // 4. Query candidate replacements
-    const { data: candidates } = await supabase
+    const { data: candidates } = await dbClient
       .from("questions")
       .select(`
         id, subject_id, chapter_id, difficulty, status, is_active,
@@ -357,7 +373,7 @@ export async function replaceDraftQuestionAction(
     const replacement = eligible[Math.floor(Math.random() * eligible.length)];
 
     // 5. Update test_questions record
-    await supabase
+    await dbClient
       .from("test_questions")
       .update({ question_id: replacement.id })
       .eq("id", oldTQ.id);

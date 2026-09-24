@@ -56,7 +56,14 @@ export function filterEligibleCandidates(
     }
 
     // 6. Hard Rule: Exam type match
-    if (blueprint.exam_type !== "GENERIC" && q.exam_type !== blueprint.exam_type) {
+    const examMatch =
+      blueprint.exam_type === "GENERIC" ||
+      q.exam_type === "GENERIC" ||
+      q.exam_type === blueprint.exam_type ||
+      (blueprint.exam_type === "JEE_ADV" && (q.exam_type as string) === "JEE_ADVANCED") ||
+      ((blueprint.exam_type as string) === "JEE_ADVANCED" && (q.exam_type as string) === "JEE_ADV");
+
+    if (!examMatch) {
       return false;
     }
 

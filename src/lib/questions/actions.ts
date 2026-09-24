@@ -1,9 +1,21 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/auth/session";
 import { QuestionCreateSchema, Question, QuestionOption } from "@/types/database";
 import { revalidatePath } from "next/cache";
+
+function getDbClient(fallbackSupabase: any) {
+  try {
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return createAdminClient();
+    }
+  } catch {
+    // Fallback
+  }
+  return fallbackSupabase;
+}
 
 export interface QuestionListParams {
   page?: number;
@@ -39,8 +51,9 @@ export async function getQuestionsList(
   const offset = (page - 1) * limit;
 
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
-  let query = supabase
+  let query = dbClient
     .from("questions")
     .select(
       `
@@ -110,8 +123,9 @@ export async function getQuestionsList(
  */
 export async function getQuestionById(id: string): Promise<Question | null> {
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from("questions")
     .select(`*, question_options(*)`)
     .eq("id", id)
@@ -161,9 +175,10 @@ export async function createQuestionAction(rawData: any) {
   } = parsed.data;
 
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
   // 1. Insert Question Record
-  const { data: question, error: qErr } = await supabase
+  const { data: question, error: qErr } = await dbClient
     .from("questions")
     .insert({
       subject_id: subjectId,
@@ -198,11 +213,11 @@ export async function createQuestionAction(rawData: any) {
     order_index: idx + 1,
   }));
 
-  const { error: optErr } = await supabase.from("question_options").insert(optionRows);
+  const { error: optErr } = await dbClient.from("question_options").insert(optionRows);
 
   if (optErr) {
     // Clean up created question if option insert fails
-    await supabase.from("questions").delete().eq("id", question.id);
+    await dbClient.from("questions").delete().eq("id", question.id);
     return { success: false, error: optErr.message };
   }
 
@@ -241,9 +256,10 @@ export async function updateQuestionAction(questionId: string, rawData: any) {
   } = parsed.data;
 
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
   // 1. Update question
-  const { error: qErr } = await supabase
+  const { error: qErr } = await dbClient
     .from("questions")
     .update({
       subject_id: subjectId,
@@ -268,7 +284,7 @@ export async function updateQuestionAction(questionId: string, rawData: any) {
   // 2. Upsert options
   for (let idx = 0; idx < options.length; idx++) {
     const opt = options[idx];
-    await supabase
+    await dbClient
       .from("question_options")
       .upsert({
         question_id: questionId,
@@ -290,8 +306,9 @@ export async function updateQuestionAction(questionId: string, rawData: any) {
 export async function archiveQuestionAction(questionId: string) {
   await requireRole(["TEACHER", "ADMIN"]);
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
-  const { error } = await supabase
+  const { error } = await dbClient
     .from("questions")
     .update({
       status: "ARCHIVED",
@@ -314,8 +331,9 @@ export async function archiveQuestionAction(questionId: string) {
 export async function restoreQuestionAction(questionId: string) {
   await requireRole(["TEACHER", "ADMIN"]);
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
-  const { error } = await supabase
+  const { error } = await dbClient
     .from("questions")
     .update({
       status: "APPROVED",

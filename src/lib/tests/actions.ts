@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/auth/session";
 import {
   TestDraftSchema,
@@ -10,6 +11,17 @@ import {
 } from "@/types/tests";
 import { TestStatus } from "@/types/database";
 import { revalidatePath } from "next/cache";
+
+function getDbClient(fallbackSupabase: any) {
+  try {
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return createAdminClient();
+    }
+  } catch {
+    // Fallback
+  }
+  return fallbackSupabase;
+}
 
 export interface TestListParams {
   page?: number;
@@ -29,8 +41,9 @@ export async function getAdminTestsList(params: TestListParams = {}) {
 
   await requireRole(["TEACHER", "ADMIN"]);
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
-  let query = supabase.from("tests").select(
+  let query = dbClient.from("tests").select(
     `
       *,
       test_questions(count),
@@ -104,8 +117,9 @@ export async function getAdminTestsList(params: TestListParams = {}) {
 export async function getTestDetailForAdmin(testId: string): Promise<TestDetail | null> {
   await requireRole(["TEACHER", "ADMIN"]);
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
-  const { data: test, error: testErr } = await supabase
+  const { data: test, error: testErr } = await dbClient
     .from("tests")
     .select(`
       *,
@@ -184,8 +198,9 @@ export async function createTestDraftAction(rawData: any) {
 
   const { title, description, instructions, examType, testMode, durationMinutes, markingScheme, startTime, endTime } = parsed.data;
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
-  const { data: test, error: err } = await supabase
+  const { data: test, error: err } = await dbClient
     .from("tests")
     .insert({
       title,
@@ -229,8 +244,9 @@ export async function updateTestDraftAction(testId: string, rawData: any) {
 
   const { title, description, instructions, examType, testMode, durationMinutes, markingScheme, startTime, endTime } = parsed.data;
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
-  const { error: err } = await supabase
+  const { error: err } = await dbClient
     .from("tests")
     .update({
       title,
@@ -267,9 +283,10 @@ export async function addQuestionToTestAction(
 ) {
   await requireRole(["TEACHER", "ADMIN"]);
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
   // Check test status
-  const { data: test } = await supabase
+  const { data: test } = await dbClient
     .from("tests")
     .select("status, total_marks")
     .eq("id", testId)
@@ -280,7 +297,7 @@ export async function addQuestionToTestAction(
   }
 
   // Check duplicate
-  const { data: existing } = await supabase
+  const { data: existing } = await dbClient
     .from("test_questions")
     .select("id")
     .eq("test_id", testId)
@@ -292,14 +309,14 @@ export async function addQuestionToTestAction(
   }
 
   // Get current order count
-  const { count } = await supabase
+  const { count } = await dbClient
     .from("test_questions")
     .select("*", { count: "exact", head: true })
     .eq("test_id", testId);
 
   const nextOrder = (count || 0) + 1;
 
-  const { error: insertErr } = await supabase.from("test_questions").insert({
+  const { error: insertErr } = await dbClient.from("test_questions").insert({
     test_id: testId,
     question_id: questionId,
     section_id: sectionId || null,
@@ -313,7 +330,7 @@ export async function addQuestionToTestAction(
   }
 
   // Update total marks on test
-  await supabase
+  await dbClient
     .from("tests")
     .update({ total_marks: (test.total_marks || 0) + marks })
     .eq("id", testId);
@@ -328,9 +345,10 @@ export async function addQuestionToTestAction(
 export async function removeQuestionFromTestAction(testId: string, testQuestionId: string) {
   await requireRole(["TEACHER", "ADMIN"]);
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
   // Check test status
-  const { data: test } = await supabase
+  const { data: test } = await dbClient
     .from("tests")
     .select("status")
     .eq("id", testId)
@@ -340,13 +358,13 @@ export async function removeQuestionFromTestAction(testId: string, testQuestionI
     return { success: false, error: "Cannot delete questions from a LIVE or COMPLETED test." };
   }
 
-  const { data: tq } = await supabase
+  const { data: tq } = await dbClient
     .from("test_questions")
     .select("marks")
     .eq("id", testQuestionId)
     .single();
 
-  const { error: delErr } = await supabase
+  const { error: delErr } = await dbClient
     .from("test_questions")
     .delete()
     .eq("id", testQuestionId);
@@ -357,13 +375,13 @@ export async function removeQuestionFromTestAction(testId: string, testQuestionI
 
   // Recalculate total marks
   if (tq) {
-    const { data: allQuestions } = await supabase
+    const { data: allQuestions } = await dbClient
       .from("test_questions")
       .select("marks")
       .eq("test_id", testId);
 
-    const newTotal = (allQuestions || []).reduce((acc, q) => acc + (Number(q.marks) || 0), 0);
-    await supabase.from("tests").update({ total_marks: newTotal }).eq("id", testId);
+    const newTotal = (allQuestions || []).reduce((acc: number, q: any) => acc + (Number(q.marks) || 0), 0);
+    await dbClient.from("tests").update({ total_marks: newTotal }).eq("id", testId);
   }
 
   revalidatePath(`/admin/tests/${testId}`);
@@ -376,6 +394,7 @@ export async function removeQuestionFromTestAction(testId: string, testQuestionI
 export async function publishTestAction(testId: string) {
   await requireRole(["TEACHER", "ADMIN"]);
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
   const testDetail = await getTestDetailForAdmin(testId);
   if (!testDetail) {
@@ -397,7 +416,7 @@ export async function publishTestAction(testId: string) {
     const snapshot = {
       content_latex: q.content_latex,
       explanation_latex: q.explanation_latex,
-      options: (q.options || []).map((opt) => ({
+      options: (q.options || []).map((opt: any) => ({
         id: opt.id,
         option_key: opt.option_key,
         content_latex: opt.content_latex,
@@ -405,7 +424,7 @@ export async function publishTestAction(testId: string) {
       })),
     };
 
-    await supabase
+    await dbClient
       .from("test_questions")
       .update({ snapshot_data: snapshot })
       .eq("id", tq.id);
@@ -413,7 +432,7 @@ export async function publishTestAction(testId: string) {
 
   const newStatus: TestStatus = testDetail.start_time ? "SCHEDULED" : "PUBLISHED";
 
-  const { error: pubErr } = await supabase
+  const { error: pubErr } = await dbClient
     .from("tests")
     .update({
       status: newStatus,
@@ -437,8 +456,9 @@ export async function publishTestAction(testId: string) {
 export async function assignTestToClassAction(testId: string, classId: string, dueAt?: string | null) {
   const session = await requireRole(["TEACHER", "ADMIN"]);
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
-  const { error: assignErr } = await supabase.from("test_assignments").insert({
+  const { error: assignErr } = await dbClient.from("test_assignments").insert({
     test_id: testId,
     class_id: classId,
     assigned_by: session.user.id,
@@ -459,8 +479,9 @@ export async function assignTestToClassAction(testId: string, classId: string, d
 export async function assignTestToStudentAction(testId: string, studentId: string, dueAt?: string | null) {
   const session = await requireRole(["TEACHER", "ADMIN"]);
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
-  const { error: assignErr } = await supabase.from("test_assignments").insert({
+  const { error: assignErr } = await dbClient.from("test_assignments").insert({
     test_id: testId,
     student_id: studentId,
     assigned_by: session.user.id,
@@ -481,8 +502,9 @@ export async function assignTestToStudentAction(testId: string, studentId: strin
 export async function archiveTestAction(testId: string) {
   await requireRole(["TEACHER", "ADMIN"]);
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
-  const { error: archErr } = await supabase
+  const { error: archErr } = await dbClient
     .from("tests")
     .update({
       status: "ARCHIVED",
@@ -531,20 +553,21 @@ export async function createAndAddBulkQuestionsToTestAction(
 ) {
   const session = await requireRole(["TEACHER", "ADMIN"]);
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
   if (!extractedQuestions || extractedQuestions.length === 0) {
     return { success: false, error: "No questions provided." };
   }
 
   // Fetch Subject and Chapter mappings
-  const { data: subjects } = await supabase.from("subjects").select("id, name");
-  const { data: chapters } = await supabase.from("chapters").select("id, name, subject_id");
+  const { data: subjects } = await dbClient.from("subjects").select("id, name");
+  const { data: chapters } = await dbClient.from("chapters").select("id, name, subject_id");
 
   const defaultSubj = subjects?.[0]?.id || "11111111-0000-0000-0000-000000000001";
   const defaultChap = chapters?.[0]?.id || "754cf45c-0d59-4879-a1a0-a73723ee7903";
 
   // Fetch current test max order_index
-  const { data: currentTq } = await supabase
+  const { data: currentTq } = await dbClient
     .from("test_questions")
     .select("order_index, marks, negative_marks")
     .eq("test_id", testId)
@@ -560,20 +583,20 @@ export async function createAndAddBulkQuestionsToTestAction(
   for (const eq of extractedQuestions) {
     // Match subject by name
     const matchedSubj = subjects?.find(
-      (s) => s.name.toLowerCase() === (eq.suggested_subject_name || "").toLowerCase()
+      (s: any) => s.name.toLowerCase() === (eq.suggested_subject_name || "").toLowerCase()
     );
     const subjectId = matchedSubj ? matchedSubj.id : defaultSubj;
 
     // Match chapter by name
     const matchedChap = chapters?.find(
-      (c) =>
+      (c: any) =>
         c.subject_id === subjectId &&
         c.name.toLowerCase().includes((eq.suggested_chapter_name || "").toLowerCase().slice(0, 5))
     );
     const chapterId = matchedChap ? matchedChap.id : defaultChap;
 
     // 1. Insert Question
-    const { data: newQ, error: qErr } = await supabase
+    const { data: newQ, error: qErr } = await dbClient
       .from("questions")
       .insert({
         content_latex: eq.question_latex,
@@ -599,12 +622,12 @@ export async function createAndAddBulkQuestionsToTestAction(
     const optionsToInsert = (eq.options || []).map((opt: any, idx: number) => ({
       question_id: newQ.id,
       option_key: opt.option_key || ["A", "B", "C", "D"][idx],
-      content_latex: opt.content_latex || `Option ${opt.option_key}`,
+      content_latex: opt.contentLatex || opt.content_latex || `Option ${opt.option_key}`,
       is_correct: Boolean(opt.is_correct || opt.option_key === eq.correct_option_key),
       order_index: idx + 1,
     }));
 
-    const { data: savedOptions } = await supabase
+    const { data: savedOptions } = await dbClient
       .from("question_options")
       .insert(optionsToInsert)
       .select();
@@ -622,7 +645,7 @@ export async function createAndAddBulkQuestionsToTestAction(
       })),
     };
 
-    await supabase.from("test_questions").insert({
+    await dbClient.from("test_questions").insert({
       test_id: testId,
       question_id: newQ.id,
       order_index: nextOrderIndex++,
@@ -635,13 +658,13 @@ export async function createAndAddBulkQuestionsToTestAction(
   }
 
   // Update total marks on test
-  const { data: allTq } = await supabase
+  const { data: allTq } = await dbClient
     .from("test_questions")
     .select("marks")
     .eq("test_id", testId);
 
-  const newTotalMarks = (allTq || []).reduce((acc, cur) => acc + (Number(cur.marks) || 4), 0);
-  await supabase
+  const newTotalMarks = (allTq || []).reduce((acc: number, cur: any) => acc + (Number(cur.marks) || 4), 0);
+  await dbClient
     .from("tests")
     .update({ total_marks: newTotalMarks, updated_at: new Date().toISOString() })
     .eq("id", testId);
@@ -657,9 +680,10 @@ export async function createAndAddBulkQuestionsToTestAction(
 export async function getTestAttendanceAndMarksAction(testId: string) {
   await requireRole(["TEACHER", "ADMIN"]);
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
   // 1. Fetch Test Details
-  const { data: test, error: tErr } = await supabase
+  const { data: test, error: tErr } = await dbClient
     .from("tests")
     .select("id, title, duration_minutes, total_marks, exam_type, status, start_time, end_time, marking_scheme")
     .eq("id", testId)
@@ -670,7 +694,7 @@ export async function getTestAttendanceAndMarksAction(testId: string) {
   }
 
   // 2. Fetch all direct assignments and class assignments
-  const { data: assignments } = await supabase
+  const { data: assignments } = await dbClient
     .from("test_assignments")
     .select(`
       id, class_id, student_id, due_at,
@@ -705,7 +729,7 @@ export async function getTestAttendanceAndMarksAction(testId: string) {
   });
 
   // 3. Fetch all attempts and test_results for this test
-  const { data: attempts } = await supabase
+  const { data: attempts } = await dbClient
     .from("attempts")
     .select(`
       id, student_id, status, started_at, submitted_at, time_spent_seconds, total_score, accuracy_percentage,

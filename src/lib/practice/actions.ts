@@ -35,9 +35,10 @@ function getDbClient(fallbackSupabase: any) {
  */
 export async function getPracticeTaxonomyAction(examType: "JEE_MAIN" | "JEE_ADV" | "NEET"): Promise<SelfTestTaxonomySubject[]> {
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
   // 1. Fetch Subjects
-  const { data: subjects, error: subjErr } = await supabase
+  const { data: subjects, error: subjErr } = await dbClient
     .from("subjects")
     .select("id, name, code")
     .order("name");
@@ -60,7 +61,7 @@ export async function getPracticeTaxonomyAction(examType: "JEE_MAIN" | "JEE_ADV"
   const subjectIds = validSubjects.map((s) => s.id);
 
   // 2. Fetch Chapters for valid subjects
-  const { data: chapters } = await supabase
+  const { data: chapters } = await dbClient
     .from("chapters")
     .select("id, subject_id, name, order_index")
     .in("subject_id", subjectIds)
@@ -69,7 +70,7 @@ export async function getPracticeTaxonomyAction(examType: "JEE_MAIN" | "JEE_ADV"
   const chapterIds = (chapters || []).map((c) => c.id);
 
   // 3. Fetch Topics
-  const { data: topics } = await supabase
+  const { data: topics } = await dbClient
     .from("topics")
     .select("id, chapter_id, name, order_index")
     .in("chapter_id", chapterIds)
@@ -146,21 +147,21 @@ export async function checkPracticePoolAvailabilityAction(
   }));
 
   // 2. Fetch Student's Previous Attempt Responses (to detect attempted question IDs)
-  const { data: attemptRows } = await supabase
+  const { data: attemptRows } = await dbClient
     .from("attempts")
     .select("id")
     .eq("student_id", studentId);
 
-  const attemptIds = (attemptRows || []).map((a) => a.id);
+  const attemptIds = (attemptRows || []).map((a: any) => a.id);
   let attemptedQuestionIds = new Set<string>();
 
   if (attemptIds.length > 0) {
-    const { data: answers } = await supabase
-      .from("answers")
+    const { data: answers } = await dbClient
+      .from("attempt_answers")
       .select("question_id")
       .in("attempt_id", attemptIds);
 
-    attemptedQuestionIds = new Set((answers || []).map((a) => a.question_id));
+    attemptedQuestionIds = new Set((answers || []).map((a: any) => a.question_id));
   }
 
   // 3. Fetch Student's Recent Self-Tests (created in last 14 days)
@@ -272,39 +273,39 @@ export async function generateSelfPracticeTestAction(
   }));
 
   // 2. Fetch Student Previous History
-  const { data: attemptRows } = await supabase
+  const { data: attemptRows } = await dbClient
     .from("attempts")
     .select("id")
     .eq("student_id", studentId);
 
-  const attemptIds = (attemptRows || []).map((a) => a.id);
+  const attemptIds = (attemptRows || []).map((a: any) => a.id);
   let attemptedQuestionIds = new Set<string>();
 
   if (attemptIds.length > 0) {
-    const { data: answers } = await supabase
-      .from("answers")
+    const { data: answers } = await dbClient
+      .from("attempt_answers")
       .select("question_id")
       .in("attempt_id", attemptIds);
 
-    attemptedQuestionIds = new Set((answers || []).map((a) => a.question_id));
+    attemptedQuestionIds = new Set((answers || []).map((a: any) => a.question_id));
   }
 
-  const { data: recentSelfTests } = await supabase
+  const { data: recentSelfTests } = await dbClient
     .from("tests")
     .select("id")
     .eq("created_by", studentId)
     .eq("test_mode", "PRACTICE_SELF");
 
-  const selfTestIds = (recentSelfTests || []).map((t) => t.id);
+  const selfTestIds = (recentSelfTests || []).map((t: any) => t.id);
   let recentSelfTestQuestionIds = new Set<string>();
 
   if (selfTestIds.length > 0) {
-    const { data: tqs } = await supabase
+    const { data: tqs } = await dbClient
       .from("test_questions")
       .select("question_id")
       .in("test_id", selfTestIds);
 
-    recentSelfTestQuestionIds = new Set((tqs || []).map((tq) => tq.question_id));
+    recentSelfTestQuestionIds = new Set((tqs || []).map((tq: any) => tq.question_id));
   }
 
   // 3. Execute Selection Algorithm
@@ -336,7 +337,7 @@ export async function generateSelfPracticeTestAction(
         )}`;
 
   // 5. Create Private Test in Database
-  const { data: newTest, error: testErr } = await supabase
+  const { data: newTest, error: testErr } = await dbClient
     .from("tests")
     .insert({
       title,
@@ -406,8 +407,9 @@ export async function getSelfTestSummaryAction(testId: string): Promise<SelfTest
   const session = await requireRole(["STUDENT", "TEACHER", "ADMIN"]);
   const studentId = session.user.id;
   const supabase = await createClient();
+  const dbClient = getDbClient(supabase);
 
-  const { data: test, error } = await supabase
+  const { data: test, error } = await dbClient
     .from("tests")
     .select(`
       id, title, exam_type, duration_minutes, total_marks, marking_scheme, created_by, created_at,
