@@ -49,8 +49,8 @@ export async function getPracticeTaxonomyAction(examType: "JEE_MAIN" | "JEE_ADV"
 
   // Filter subjects according to exam (NEET excludes Math, JEE excludes Biology)
   const isNeet = examType === "NEET";
-  const validSubjects = subjects.filter((s) => {
-    const lower = s.name.toLowerCase();
+  const validSubjects = (subjects as any[]).filter((s: any) => {
+    const lower = (s.name || "").toLowerCase();
     if (isNeet) {
       return !lower.includes("math");
     } else {
@@ -58,7 +58,7 @@ export async function getPracticeTaxonomyAction(examType: "JEE_MAIN" | "JEE_ADV"
     }
   });
 
-  const subjectIds = validSubjects.map((s) => s.id);
+  const subjectIds = validSubjects.map((s: any) => s.id);
 
   // 2. Fetch Chapters for valid subjects
   const { data: chapters } = await dbClient
@@ -67,7 +67,7 @@ export async function getPracticeTaxonomyAction(examType: "JEE_MAIN" | "JEE_ADV"
     .in("subject_id", subjectIds)
     .order("order_index");
 
-  const chapterIds = (chapters || []).map((c) => c.id);
+  const chapterIds = ((chapters as any[]) || []).map((c: any) => c.id);
 
   // 3. Fetch Topics
   const { data: topics } = await dbClient
@@ -78,14 +78,14 @@ export async function getPracticeTaxonomyAction(examType: "JEE_MAIN" | "JEE_ADV"
 
   // Group into hierarchy
   const topicMapByChapter = new Map<string, { id: string; name: string }[]>();
-  (topics || []).forEach((t) => {
+  ((topics as any[]) || []).forEach((t: any) => {
     const list = topicMapByChapter.get(t.chapter_id) || [];
     list.push({ id: t.id, name: t.name });
     topicMapByChapter.set(t.chapter_id, list);
   });
 
   const chapterMapBySubject = new Map<string, any[]>();
-  (chapters || []).forEach((c) => {
+  ((chapters as any[]) || []).forEach((c: any) => {
     const list = chapterMapBySubject.get(c.subject_id) || [];
     list.push({
       id: c.id,
@@ -95,7 +95,7 @@ export async function getPracticeTaxonomyAction(examType: "JEE_MAIN" | "JEE_ADV"
     chapterMapBySubject.set(c.subject_id, list);
   });
 
-  return validSubjects.map((s) => ({
+  return validSubjects.map((s: any) => ({
     id: s.id,
     name: s.name,
     code: s.code,
