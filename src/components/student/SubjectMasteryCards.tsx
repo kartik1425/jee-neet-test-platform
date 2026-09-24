@@ -136,13 +136,13 @@ export function SubjectMasteryCards({ metrics }: SubjectMasteryCardsProps) {
               {metrics.strongTopics.map((topic, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100"
+                  className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100"
                 >
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-bold text-slate-900">{topic.topicName}</p>
-                    <p className="text-[10px] text-slate-500">{topic.subjectName} • {topic.totalCount} Qs solved</p>
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <p className="text-xs font-bold text-slate-900 truncate">{topic.topicName}</p>
+                    <p className="text-[10px] text-slate-500 truncate">{topic.subjectName} • {topic.totalCount} Qs solved</p>
                   </div>
-                  <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold">
+                  <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold shrink-0">
                     {topic.accuracy}%
                   </span>
                 </div>
@@ -160,13 +160,13 @@ export function SubjectMasteryCards({ metrics }: SubjectMasteryCardsProps) {
               {metrics.weakTopics.map((topic, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-rose-50/50 border border-rose-100"
+                  className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-rose-50/50 border border-rose-100"
                 >
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-bold text-slate-900">{topic.topicName}</p>
-                    <p className="text-[10px] text-slate-500">{topic.subjectName} • {topic.totalCount} Qs attempted</p>
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <p className="text-xs font-bold text-slate-900 truncate">{topic.topicName}</p>
+                    <p className="text-[10px] text-slate-500 truncate">{topic.subjectName} • {topic.totalCount} Qs attempted</p>
                   </div>
-                  <span className="px-2 py-1 rounded-lg bg-rose-100 text-rose-800 text-xs font-bold">
+                  <span className="px-2 py-1 rounded-lg bg-rose-100 text-rose-800 text-xs font-bold shrink-0">
                     {topic.accuracy}%
                   </span>
                 </div>
