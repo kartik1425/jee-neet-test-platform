@@ -27,17 +27,19 @@ function LoginForm() {
       try {
         const supabase = createBrowserClient();
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: targetEmail,
+          email: targetEmail.trim(),
           password: targetPass,
         });
 
-        if (error || !data.user) {
-          // Fallback to server action
-          const formData = new FormData();
-          formData.append("email", targetEmail);
-          formData.append("password", targetPass);
-          if (returnTo) formData.append("returnTo", returnTo);
-          formAction(formData);
+        if (error) {
+          setClientError(error.message || "Invalid email or password.");
+          setAutoSubmitting(null);
+          return;
+        }
+
+        if (!data?.user) {
+          setClientError("Unable to authenticate. Please check your credentials.");
+          setAutoSubmitting(null);
           return;
         }
 
@@ -52,12 +54,9 @@ function LoginForm() {
 
         window.location.href = redirectPath;
       } catch (err: any) {
-        console.error("Client login error, falling back:", err);
-        const formData = new FormData();
-        formData.append("email", targetEmail);
-        formData.append("password", targetPass);
-        if (returnTo) formData.append("returnTo", returnTo);
-        formAction(formData);
+        console.error("Client login error:", err);
+        setClientError(err?.message || "Login failed. Please try again.");
+        setAutoSubmitting(null);
       }
     });
   };

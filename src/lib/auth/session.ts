@@ -17,13 +17,24 @@ export interface AuthSession {
 export async function getAuthSession(): Promise<AuthSession | null> {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    // Fast-path 1: Read local session token directly from cookie store (0ms network cost)
+    const { data: { session } } = await supabase.auth.getSession();
+    let user = session?.user;
 
-    if (userError || !user || !user.email) {
+    if (!user) {
+      const { data: { user: fetchedUser }, error: userError } = await supabase.auth.getUser();
+      if (userError || !fetchedUser || !fetchedUser.email) {
+        return null;
+      }
+      user = fetchedUser;
+    }
+
+    if (!user || !user.email) {
       return null;
     }
 
-    // Fast-path: Check if role and target_exam exist in user metadata to avoid blocking network query
+    // Fast-path 2: Check if role and target_exam exist in user metadata to avoid blocking network query
     const userRole = (user.user_metadata?.role || user.app_metadata?.role) as UserRole | undefined;
     if (userRole && ["STUDENT", "TEACHER", "ADMIN"].includes(userRole)) {
       return {
